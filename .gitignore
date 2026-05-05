@@ -1,0 +1,15 @@
+# rust build artifacts
+target/
+Cargo.lock
+
+# build outputs
+neomud
+neomud.d
+
+# ide
+.vscode/
+.idea/
+
+# os
+.DS_Store
+Thumbs.db

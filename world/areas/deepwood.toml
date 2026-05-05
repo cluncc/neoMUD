@@ -1,0 +1,132 @@
+[area]
+id = "deepwood"
+name = "The Deepwood"
+description = "An ancient forest that predates recorded history, full of mystery and danger."
+level_range = [3, 15]
+theme = "Forest"
+weather = "PartlyCloudy"
+weather_zone = true   # has its own weather independent of global
+
+[[rooms]]
+id = "trail_head"
+name = "Forest Trail Head"
+description = "The road ends here and a narrow trail disappears into the trees. Ancient oaks lean overhead, their canopies weaving together to block most of the sky. The air is immediately cooler and smells of earth and green things."
+flags = { outside = true }
+[rooms.descriptions]
+night = "At night, the forest trail is a place of shifting shadows and unsettling sounds. The trees creak in a wind you can barely feel. Fireflies trace slow arcs between the roots."
+rain = "Rain hammers the canopy overhead, dripping down through the leaves in intermittent streams. The trail has turned to mud, and the forest smells intensely of wet earth."
+[rooms.exits]
+east = "nexus:entrance"
+west = "deepwood:clearing"
+north = "deepwood:old_road"
+[[rooms]]
+id = "clearing"
+name = "The Mossy Clearing"
+description = "A circular clearing breaks the forest canopy. The ground is carpeted in thick moss, and a ring of standing stones — each about waist-high — marks the circle's edge. The stones are very old and covered in carvings that the moss is slowly reclaiming."
+script = "standing_stones.rhai"
+lore = [
+  "stones: The standing stones are arranged in a precise circle. The carvings, where you can read them, appear to be a calendar of some kind — but one that counts time in units you don't recognize.",
+  "moss: The moss in the clearing is a species you've never seen before. It grows in fractal patterns and is faintly warm to the touch.",
+  "circle: The circle is a focus for natural energies. Druids sometimes come here to commune with the land, but not all who enter leave unchanged."
+]
+flags = { outside = true }
+[rooms.descriptions]
+night = "By night, the standing stones seem to pulse with faint luminescence. The moss glows with foxfire. Whatever this place was for, it is still active."
+dawn = "In the grey light of dawn, the clearing is filled with a ground-level mist that curls around the standing stones. Birds begin their morning chorus in the surrounding trees."
+[rooms.exits]
+east = "deepwood:trail_head"
+north = "deepwood:spirit_grove"
+south = "deepwood:ruined_shrine"
+west = "deepwood:river_ford"
+[[rooms]]
+id = "old_road"
+name = "The Old Road"
+description = "A road paved with fitted stones cuts through the forest, far older than anything near it. The stones are mossy and occasionally heaved up by roots, but still passable. Someone maintained it once; no one does now."
+flags = { outside = true }
+[rooms.exits]
+south = "deepwood:trail_head"
+north = "deepwood:collapsed_gate"
+[[rooms]]
+id = "spirit_grove"
+name = "The Spirit Grove"
+description = "The trees here are impossibly large — their trunks wider than houses, their canopies a self-contained sky. The light has a greenish quality, filtered through layers of ancient leaves. You feel watched, but not threatened. Whatever watches has been here far longer than you."
+script = "spirit_grove.rhai"
+flags = { outside = true, no_magic = false }
+[rooms.descriptions]
+dawn = "Dawn light filters through the grove canopy, catching motes of dust and pollen in long golden shafts. The silence here is absolute — even the birds fall quiet."
+night = "By night, the grove is lit by bioluminescent fungi and the soft blue glow of the oldest trees. It's beautiful and deeply unsettling in equal measure."
+[rooms.exits]
+south = "deepwood:clearing"
+[[rooms]]
+id = "ruined_shrine"
+name = "The Ruined Shrine"
+description = "All that remains of a shrine are some tumbled stone blocks and a cracked altar. Whatever deity was worshipped here has been forgotten — the iconography is completely worn away. Wildflowers have reclaimed the stones, which is perhaps its own kind of devotion."
+flags = { outside = true }
+[rooms.exits]
+north = "deepwood:clearing"
+[[rooms]]
+id = "river_ford"
+name = "The River Ford"
+description = "A broad, shallow river crosses your path here. The water is cold and clear, running over smooth stones. There's a ford — marked by a line of flat rocks just below the surface — that allows crossing with care."
+flags = { outside = true, water = true }
+[rooms.exits]
+east = "deepwood:clearing"
+west = "deepwood:far_bank"
+[[rooms]]
+id = "far_bank"
+name = "Far Bank of the River"
+description = "The far bank of the river is wilder than the near side. The forest here has never been managed or walked. Fallen trees and dense undergrowth make progress slow. Something large moves in the trees ahead."
+flags = { outside = true }
+[rooms.exits]
+east = "deepwood:river_ford"
+west = "deepwood:predators_den"
+[[rooms]]
+id = "predators_den"
+name = "The Predator's Den"
+description = "Bones litter the ground here — picked clean and gnawed. The smell is animal and sharp. Whatever made this den is large enough that the surrounding trees have been cleared of undergrowth to height of eight feet. It is not here now, but it has been here recently."
+flags = { outside = true }
+[rooms.exits]
+east = "deepwood:far_bank"
+[[rooms.spawn_npcs]]
+template = "deepwood:forest_bear"
+count = 1
+
+[[rooms]]
+id = "collapsed_gate"
+name = "The Collapsed Gate"
+description = "Two enormous stone pillars lean toward each other across the old road. Between them, the lintel has collapsed, but enough remains that you can read the inscription: 'Speak truth and pass. Speak false and be known.' The ward, if there was one, has long since faded."
+flags = { outside = true }
+[rooms.exits]
+south = "deepwood:old_road"
+north = "deepwood:ancient_ruins"
+[[rooms]]
+id = "ancient_ruins"
+name = "The Ancient Ruins"
+description = "The forest has reclaimed what was once a substantial settlement. Walls peek out from under centuries of growth. The scale is impressive — whatever was here was built for permanence. A well at the center still draws clean water."
+lore = [
+  "well: The well is deep and the water cold and sweet. Something in the stonework keeps it clean.",
+  "walls: The wall construction style is unlike anything in current use. The stones are fitted without mortar and have barely settled after what must be centuries.",
+  "carving: A partially buried carving shows figures in robes gathered around an obelisk. The obelisk looks familiar."
+]
+flags = { outside = true }
+[rooms.exits]
+south = "deepwood:collapsed_gate"
+# ─── NPC Templates ─────────────────────────────────────────────────────────────
+
+[[npc_templates]]
+id = "deepwood:forest_bear"
+name = "a massive brown bear"
+short_desc = "A massive brown bear stands on its hind legs, regarding you."
+long_desc = "The bear is enormous — easily seven feet at the shoulder when on all fours. Its fur is thick and matted with mud. It regards you with small, intelligent eyes. A long scar runs across its muzzle."
+keywords = ["bear", "brown", "massive"]
+level = 8
+base_hp = 120
+base_mp = 0
+base_strength = 20
+base_dexterity = 10
+base_constitution = 18
+faction = "wildlife"
+respawn_minutes = 30
+xp_reward = 250
+coin_drop = [0, 0]
+behavior = { type = "Aggressive" }

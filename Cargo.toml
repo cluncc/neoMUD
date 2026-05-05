@@ -1,0 +1,37 @@
+[package]
+name = "neomud"
+version = "0.1.0"
+edition = "2021"
+description = "A modern, scriptable MUD engine with dynamic worlds"
+
+[[bin]]
+name = "neomud"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["full"] }
+rhai = { version = "1", features = ["sync", "serde"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+toml = "0.8"
+uuid = { version = "1", features = ["v4"] }
+chrono = "0.4"
+rand = "0.8"
+thiserror = "1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dashmap = "5"
+colored = "2"
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+once_cell = "1"
+glob = "0.3"
+sha2 = "0.10"
+hex = "0.4"
+argon2 = { version = "0.5", features = ["std"] }
+russh = "0.44"
+russh-keys = "0.44"
+async-trait = "0.1"
+
+[dev-dependencies]
+tempfile = "3"

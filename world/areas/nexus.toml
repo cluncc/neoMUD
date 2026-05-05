@@ -1,0 +1,383 @@
+[area]
+id = "nexus"
+name = "The Nexus"
+description = "A shimmering convergence point where paths between worlds meet."
+level_range = [1, 10]
+theme = "Urban"
+weather = "Clear"
+weather_zone = false
+
+# ─── Rooms ─────────────────────────────────────────────────────────────────────
+
+[[rooms]]
+id = "entrance"
+name = "The Grand Entrance"
+description = "You stand at the threshold of the Nexus, where the air itself hums with latent magic. Great archways of black marble rise on either side, inscribed with runes from a dozen forgotten tongues. The flagstone path is worn smooth by centuries of travelers."
+lore = [
+  "archway: The archways are carved from a single piece of obsidian. No mortar was used — the stones fit together with supernatural precision.",
+  "runes: The runes shift as you watch them. Some are in languages you recognize; others seem to change before your eyes.",
+  "flagstones: The flagstones are polished mirror-smooth by countless footsteps across the centuries."
+]
+flags = { safe = true, indoors = false, outside = true }
+[rooms.descriptions]
+night = "Lanterns cast pools of amber light across the threshold of the Nexus. The archways loom in shadow, their runes faintly luminescent in the darkness. You hear the distant sound of voices drifting from deeper within."
+dawn = "The first grey light of dawn illuminates the Nexus entrance. Dew glistens on the ancient stone. A few early risers move through the archway ahead."
+[rooms.exits]
+north = "nexus:hub"
+east = "nexus:market"
+west = "nexus:inn"
+[[rooms]]
+id = "hub"
+name = "The Central Hub"
+description = "A vast circular plaza forms the heart of the Nexus. Ancient flagstones, worn smooth by countless footsteps, radiate outward from a towering obelisk of black crystal that pulses with slow blue light. Several paths branch outward to different districts."
+lore = [
+  "obelisk: The obelisk predates the Nexus by at least five thousand years. Scholars believe it marks the point where the dimensional barriers are thinnest.",
+  "benches: Carved stone benches ring the plaza. Some are worn enough that you can make out names scratched into the stone by travelers long past.",
+  "flagstones: Concentric circles of different-colored stone mark distance from the obelisk."
+]
+flags = { safe = true }
+[rooms.descriptions]
+night = "Under the stars, the crystal obelisk at the center of the Hub blazes with cold blue light. Its glow casts long shadows across the ancient flagstones. A few night-owls and insomniacs sit on the benches nearby."
+rain = "The rain drums on the awnings that have been hastily deployed around the Hub's perimeter. The crystal obelisk seems to glow more intensely in the wet weather, its light refracting in the puddles at your feet."
+[rooms.exits]
+south = "nexus:entrance"
+north = "nexus:library"
+east = "nexus:guild"
+west = "nexus:temple"
+up = "nexus:observatory"
+[[rooms.spawn_npcs]]
+template = "nexus:herald"
+count = 1
+
+[[rooms]]
+id = "market"
+name = "The Bazaar"
+description = "Colorful stalls crowd this lively marketplace. Merchants hawk their wares in a dozen languages. The smells of spiced food, exotic oils, and fresh-cut leather mingle in the busy air. Buyers and sellers negotiate with passionate gestures."
+flags = { safe = true, shop = true }
+[rooms.descriptions]
+night = "The Bazaar has quieted for the evening, though a few determined merchants still display their wares by lantern light. The smell of night-blooming herbs mingles with the lingering scents of the day's trade."
+[rooms.exits]
+west = "nexus:entrance"
+north = "nexus:supply_depot"
+[[rooms.spawn_npcs]]
+template = "nexus:trader_elra"
+count = 1
+
+[[rooms]]
+id = "supply_depot"
+name = "Elra's Adventuring Supplies"
+description = "Shelves groan under the weight of adventuring equipment: coils of rope, torches, healing potions in neatly ranked bottles, and tools of every description. A cheerful gnome woman keeps meticulous inventory behind a scarred wooden counter."
+flags = { safe = true, shop = true, indoors = true }
+[rooms.exits]
+south = "nexus:market"
+[[rooms.spawn_npcs]]
+template = "nexus:shopkeeper_elra"
+count = 1
+
+[[rooms]]
+id = "inn"
+name = "The Wanderer's Rest"
+description = "A comfortable inn with low beams and a crackling hearth. Mismatched chairs surround sturdy wooden tables scarred by years of use. The smell of roasting meat and wood smoke fills the air. A broad-shouldered barkeep polishes glasses behind the bar."
+flags = { safe = true, indoors = true }
+[rooms.descriptions]
+night = "The inn is lively at this hour, full of laughter and the clink of mugs. Travelers exchange tales at the tables, and a bard in the corner picks out a gentle tune on a lute. The fire is banked low, throwing warm light across the room."
+morning = "The inn is quiet in the early morning. A few bleary travelers nurse cups of tea. The barkeep is already at work, and the smell of fresh bread drifts from the kitchen."
+[rooms.exits]
+east = "nexus:entrance"
+up = "nexus:inn_rooms"
+[[rooms]]
+id = "inn_rooms"
+name = "The Upstairs Hallway"
+description = "A narrow hallway with several numbered doors. The floors creak underfoot, and you can hear the muffled sounds of snoring from behind closed doors."
+flags = { safe = true, indoors = true }
+[rooms.exits]
+down = "nexus:inn"
+[[rooms]]
+id = "library"
+name = "The Nexus Archive"
+description = "Floor-to-ceiling shelves groan under the weight of tomes written in scripts from a hundred worlds. Motes of magical light drift between the stacks, illuminating titles that occasionally seem to rearrange themselves. A few scholars work at reading tables, surrounded by stacks of open books."
+script = "library.rhai"
+lore = [
+  "motes: The floating lights are actually condensed memory-essences from books that have been read so many times the knowledge began to leak out.",
+  "shelves: The shelves extend further back than the building logically allows. Librarians say the archive is 'spatially flexible.'",
+  "scholar: The lone scholar has been here for three days. They look up occasionally, but always return to their work."
+]
+flags = { safe = true, indoors = true, no_magic = false }
+[rooms.exits]
+south = "nexus:hub"
+[[rooms]]
+id = "guild"
+name = "The Adventurers' Guild"
+description = "Trophy heads and heraldic banners cover every wall of this smoke-stained hall. A bulletin board bristles with quest notices, bounty postings, and job listings. Battle-scarred veterans compare scars at the bar, and a grim-faced registrar waits behind an oaken desk at the back."
+flags = { safe = true, indoors = true }
+[rooms.exits]
+west = "nexus:hub"
+[[rooms.spawn_npcs]]
+template = "nexus:guild_registrar"
+count = 1
+
+[[rooms]]
+id = "temple"
+name = "The Temple of Echoes"
+description = "Soft radiance fills this vaulted chamber. Dozens of shrines line the walls, each dedicated to a different deity. The silence here is not empty — it resonates with presence, as though the room itself is listening. Even the most hardened adventurer feels the urge to speak softly here."
+lore = [
+  "shrines: Each shrine holds a small figurine or symbol of a different deity. Many are from religions long dead.",
+  "candles: The candles burn without melting. They have apparently been lit for centuries.",
+  "silence: The Temple absorbs all echoes, hence its name."
+]
+flags = { safe = true, indoors = true, no_magic = false }
+[rooms.exits]
+east = "nexus:hub"
+[[rooms]]
+id = "observatory"
+name = "The Star Gallery"
+description = "The roof of the Hub opens into this circular platform ringed by telescopes and star-charts pinned to rotating boards. The horizon stretches in every direction. At night, the sky here seems unusually close — as though the stars have descended to peer at the watchers below."
+flags = { safe = true, outside = true }
+[rooms.descriptions]
+night = "The Star Gallery blazes with celestial light. The Milky Way arcs overhead like a river of diamonds. Each telescope is trained on a different sector of sky, and the charts are annotated in dozens of hands."
+dawn = "The last stars fade as dawn touches the horizon. The Star Gallery's instruments are being covered for the day by a lone astronomer who works with practiced efficiency."
+[rooms.exits]
+down = "nexus:hub"
+# ─── NPC Templates ─────────────────────────────────────────────────────────────
+
+[[npc_templates]]
+id = "nexus:herald"
+name = "the Nexus Herald"
+short_desc = "A tall figure in a silver tabard stands near the obelisk."
+long_desc = "The Herald stands perfectly still, eyes half-closed, as though listening to distant voices. Their silver tabard bears no device. When they sense you looking, they turn and regard you with calm, pale eyes."
+keywords = ["herald", "figure", "tabard"]
+level = 5
+base_hp = 80
+base_mp = 40
+base_strength = 12
+base_dexterity = 14
+base_constitution = 12
+faction = "nexus"
+respawn_minutes = 10
+xp_reward = 0
+behavior = { type = "Passive" }
+script = "herald.rhai"
+[[npc_templates.dialogue]]
+trigger = "hello"
+response = "The Herald inclines their head slightly. 'Welcome to the Nexus. All paths converge here. All paths lead outward.'"
+[[npc_templates.dialogue]]
+trigger = "nexus"
+response = "'The Nexus exists at the intersection of many worlds. Some say it was built; others say it grew. I have been here long enough that the question no longer matters to me.'"
+[[npc_templates.dialogue]]
+trigger = "help"
+response = "'The Archive to the north holds answers. The Guild offers direction. The Temple offers solace. The Bazaar offers... most everything else.'"
+
+[[npc_templates]]
+id = "nexus:guild_registrar"
+name = "Maren, Guild Registrar"
+short_desc = "A grim-faced woman behind an oaken desk looks you over appraisingly."
+long_desc = "Maren has the look of someone who has heard every story twice and is skeptical about the third telling. Her desk is covered in neat stacks of paper, each pile precisely aligned. A row of guild badges hangs behind her, waiting for new members."
+keywords = ["maren", "registrar", "woman"]
+level = 8
+base_hp = 100
+base_mp = 20
+base_strength = 14
+base_dexterity = 10
+base_constitution = 14
+faction = "adventurers_guild"
+respawn_minutes = 10
+xp_reward = 0
+behavior = { type = "Passive" }
+[[npc_templates.dialogue]]
+trigger = "hello"
+response = "'Another hopeful, I see. Fill out the forms if you want guild membership. No, I won't summarize them for you.'"
+[[npc_templates.dialogue]]
+trigger = "quest"
+response = "Maren gestures at the bulletin board. 'Posted there. First come, first served. Don't ask me which ones are still active — check for yourself.'"
+[[npc_templates.dialogue]]
+trigger = "join"
+response = "'Guild membership requires completing at least one posted task and paying a 50-coin registration fee. Come back when you've done something worth registering.'"
+
+[[npc_templates]]
+id = "nexus:trader_elra"
+name = "Elra the Wandering Trader"
+short_desc = "A sharp-eyed gnome woman with bulging pockets wanders the bazaar."
+long_desc = "Elra somehow manages to carry more goods than seems physically possible. Pockets, pouches, and satchels cover her like a second skin, each one brimming with merchandise. Her eyes are quick and calculating, but her smile is genuine."
+keywords = ["elra", "trader", "gnome", "merchant"]
+level = 6
+base_hp = 60
+base_mp = 30
+base_strength = 8
+base_dexterity = 16
+base_constitution = 10
+faction = "merchants_guild"
+respawn_minutes = 5
+xp_reward = 0
+behavior = { type = "Merchant" }
+script = "merchant.rhai"
+[[npc_templates.dialogue]]
+trigger = "hello"
+response = "'Elra's got what you need! Or something close enough. Have a look!'"
+[[npc_templates.dialogue]]
+trigger = "trade"
+response = "'Use the buy and sell commands. I'm not here for conversation, I'm here for commerce.'"
+[[npc_templates.shop_items]]
+template = "nexus:health_potion"
+price = 25
+[[npc_templates.shop_items]]
+template = "nexus:mana_potion"
+price = 30
+[[npc_templates.shop_items]]
+template = "nexus:torch"
+price = 5
+[[npc_templates.shop_items]]
+template = "nexus:rope"
+price = 10
+
+[[npc_templates]]
+id = "nexus:shopkeeper_elra"
+name = "Elra Brightpocket"
+short_desc = "A gnome shopkeeper bustles behind the counter of the supply depot."
+long_desc = "Elra Brightpocket (no relation to Elra the Trader — probably) runs the supply depot with military efficiency. She knows exactly where every item is and what it costs."
+keywords = ["elra", "shopkeeper", "gnome"]
+level = 6
+base_hp = 60
+base_mp = 30
+base_strength = 8
+base_dexterity = 16
+base_constitution = 10
+faction = "merchants_guild"
+respawn_minutes = 5
+xp_reward = 0
+behavior = { type = "Merchant" }
+[[npc_templates.shop_items]]
+template = "nexus:health_potion"
+price = 25
+stock = 20
+[[npc_templates.shop_items]]
+template = "nexus:mana_potion"
+price = 30
+stock = 20
+[[npc_templates.shop_items]]
+template = "nexus:antidote"
+price = 15
+stock = 10
+[[npc_templates.shop_items]]
+template = "nexus:torch"
+price = 5
+[[npc_templates.shop_items]]
+template = "nexus:rope"
+price = 10
+[[npc_templates.shop_items]]
+template = "nexus:iron_dagger"
+price = 45
+[[npc_templates.shop_items]]
+template = "nexus:leather_armor"
+price = 60
+
+# ─── Item Templates ─────────────────────────────────────────────────────────────
+
+[[item_templates]]
+id = "nexus:health_potion"
+name = "a health potion"
+short_desc = "A small red vial glows faintly."
+long_desc = "A glass vial sealed with wax, containing a bright red liquid that swirls without being disturbed. It smells faintly of herbs and copper."
+keywords = ["health", "potion", "red", "vial"]
+item_type = { type = "Consumable" }
+weight = 0.2
+value = 50
+[item_templates.consumable]
+heal_hp = 40
+
+[[item_templates]]
+id = "nexus:mana_potion"
+name = "a mana potion"
+short_desc = "A small blue vial pulses with inner light."
+long_desc = "A glass vial containing a sapphire-blue liquid that seems to absorb light rather than reflect it. The liquid hums faintly against your palm."
+keywords = ["mana", "potion", "blue", "vial"]
+item_type = { type = "Consumable" }
+weight = 0.2
+value = 60
+[item_templates.consumable]
+heal_mp = 35
+
+[[item_templates]]
+id = "nexus:antidote"
+name = "an antidote"
+short_desc = "A murky green vial with a pungent smell."
+long_desc = "A squat vial of murky green liquid that smells strongly of bitter herbs. It cures most common poisons."
+keywords = ["antidote", "green", "vial"]
+item_type = { type = "Consumable" }
+weight = 0.2
+value = 30
+[item_templates.consumable]
+heal_hp = 5
+
+[[item_templates]]
+id = "nexus:torch"
+name = "a torch"
+short_desc = "A simple wooden torch wrapped in oil-soaked cloth."
+long_desc = "A sturdy wooden handle topped with cloth soaked in pitch. It will burn for several hours when lit."
+keywords = ["torch"]
+item_type = { type = "Misc" }
+weight = 0.5
+value = 10
+[item_templates.flags]
+glow = false
+
+[[item_templates]]
+id = "nexus:rope"
+name = "a coil of rope"
+short_desc = "Thirty feet of braided hemp rope."
+long_desc = "Thirty feet of thick, well-braided hemp rope. It looks strong enough to support a person's weight."
+keywords = ["rope", "coil"]
+item_type = { type = "Misc" }
+weight = 2.0
+value = 20
+
+[[item_templates]]
+id = "nexus:iron_dagger"
+name = "an iron dagger"
+short_desc = "A plain iron dagger with a leather-wrapped hilt."
+long_desc = "A no-nonsense iron blade about a foot long, double-edged and sturdy. The leather grip is worn but secure."
+keywords = ["dagger", "iron", "blade"]
+item_type = { type = "Weapon", damage_min = 2, damage_max = 6, weapon_type = "dagger" }
+weight = 0.8
+value = 90
+[item_templates.stats]
+str_bonus = 0
+dex_bonus = 1
+con_bonus = 0
+int_bonus = 0
+wis_bonus = 0
+cha_bonus = 0
+hp_bonus = 0
+mp_bonus = 0
+hit_bonus = 1
+dam_bonus = 0
+
+[[item_templates]]
+id = "nexus:leather_armor"
+name = "leather armor"
+short_desc = "Supple leather armor that won't slow you down."
+long_desc = "Well-stitched leather armor that covers your torso and upper arms. It's been treated to be water-resistant and won't impede movement."
+keywords = ["leather", "armor"]
+item_type = { type = "Armor", slot = "Chest", armor_class = 3 }
+weight = 5.0
+value = 120
+[item_templates.stats]
+str_bonus = 0
+dex_bonus = 0
+con_bonus = 1
+int_bonus = 0
+wis_bonus = 0
+cha_bonus = 0
+hp_bonus = 10
+mp_bonus = 0
+hit_bonus = 0
+dam_bonus = 0
+
+[[item_templates]]
+id = "nexus:nexus_chronicle"
+name = "The Nexus Chronicle"
+short_desc = "A worn leather book with gilt lettering."
+long_desc = "A thick volume bound in worn leather, its title pressed in fading gold: 'The Nexus Chronicle: A History.' The pages are yellowed but legible."
+keywords = ["chronicle", "book", "history"]
+item_type = { type = "Book", content = "The Nexus was not built in a single age, nor by a single hand. It grew, as certain places do, from the accumulated weight of meaning. Where travelers congregate, where paths cross and recross, reality itself thins. The Nexus is the thinnest point of all.\n\nWhat we call the 'Nexus' today is already the fourth city on this site. Each predecessor was absorbed into the one that followed, leaving behind architecture and legend in equal measure.\n\nThe obelisk predates all of them." }
+weight = 1.5
+value = 150

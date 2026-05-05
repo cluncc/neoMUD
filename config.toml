@@ -1,0 +1,28 @@
+[server]
+port = 4000
+bind_addr = "0.0.0.0"
+max_players = 100
+ssh_port = 2222
+ssh_host_key_path = "data/ssh_host_key"
+motd = """
+ ███╗   ██╗███████╗ ██████╗ ███╗   ███╗██╗   ██╗██████╗
+ ████╗  ██║██╔════╝██╔═══██╗████╗ ████║██║   ██║██╔══██╗
+ ██╔██╗ ██║█████╗  ██║   ██║██╔████╔██║██║   ██║██║  ██║
+ ██║╚██╗██║██╔══╝  ██║   ██║██║╚██╔╝██║██║   ██║██║  ██║
+ ██║ ╚████║███████╗╚██████╔╝██║ ╚═╝ ██║╚██████╔╝██████╔╝
+ ╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚═╝     ╚═╝ ╚═════╝ ╚═════╝
+                  A Modern MUD Engine v0.1
+           Scriptable Worlds • Living NPCs • Dynamic Lore
+"""
+
+[game]
+tick_rate_ms = 250
+game_time_multiplier = 60  # 1 real minute = 1 game hour
+world_path = "world"
+players_path = "players"
+start_room = "nexus:entrance"
+
+[combat]
+base_hit_chance = 65
+round_duration_ticks = 8    # 2 seconds at 250ms ticks
+flee_success_chance = 40
