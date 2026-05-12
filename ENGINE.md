@@ -2,7 +2,7 @@
 
 Scripts extend the world without touching Rust. Rooms, NPCs, and items can each carry a reference to a `.rhai` file. When the engine triggers a lifecycle event on that entity, it compiles the file (once), calls the relevant function, and executes the actions the function returns.
 
-Everything here describes what the engine *actually does today*. Hooks and actions that are planned but not yet wired are called out explicitly in their sections.
+Everything here describes what the engine *actually does today*. All hooks and actions listed in this document are implemented and active.
 
 ---
 
@@ -833,14 +833,14 @@ fn on_tick(ctx) {
 |---|---|---|---|
 | `on_enter(ctx)` | Room | **Active** | Player enters room |
 | `describe(ctx)` | Room | **Active** | Room description rendered |
-| `on_exit(ctx)` | Room | Planned | Player leaves room |
-| `on_tick(ctx)` | Room, NPC | Planned | Each game tick |
-| `on_say(ctx)` | Room, NPC | Planned | Player uses `say` |
-| `on_command(ctx)` | Room, NPC | Planned | Player types a command |
-| `on_attack(ctx)` | NPC | Planned | Player attacks NPC |
-| `on_die(ctx)` | NPC | Planned | NPC killed |
-| `on_use(ctx)` | Item | Planned | Player uses item |
-| `on_pickup(ctx)` | Item | Planned | Player picks up item |
+| `on_exit(ctx)` | Room | **Active** | Player leaves room |
+| `on_tick(ctx)` | Room, NPC | **Active** | Each game tick |
+| `on_say(ctx)` | Room, NPC | **Active** | Player uses `say` |
+| `on_command(ctx)` | Room, NPC | **Active** | Player types a command |
+| `on_attack(ctx)` | NPC | **Active** | Player attacks NPC |
+| `on_die(ctx)` | NPC | **Active** | NPC killed |
+| `on_use(ctx)` | Item | **Active** | Player uses item |
+| `on_pickup(ctx)` | Item | **Active** | Player picks up item |
 
 ### Actions at a glance
 
@@ -854,9 +854,9 @@ fn on_tick(ctx) {
 | `record_history` | **Active** | `room`, `event` |
 | `grant_skill` | **Active** | `player`, `skill` |
 | `adjust_rep` | **Active** | `player`, `faction`, `amount` |
-| `tell_area` | Planned | `area`, `msg` |
-| `move_npc` | Planned | `npc`, `to` |
-| `spawn_npc` | Planned | `template`, `room` |
-| `spawn_item` | Planned | `template`, `room` |
-| `give_item` | Planned | `player`, `template` |
-| `set_flag` | Planned | `target`, `id`, `flag`, `value` |
+| `tell_area` | **Active** | `area`, `msg` |
+| `move_npc` | **Active** | `npc`, `to` |
+| `spawn_npc` | **Active** | `template`, `room` |
+| `spawn_item` | **Active** | `template`, `room` |
+| `give_item` | **Active** | `player`, `template` |
+| `set_flag` | **Active** | `target`, `id`, `flag`, `value` |
