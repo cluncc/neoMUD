@@ -141,4 +141,4 @@ fn on_enter(ctx) {
 
 ## License
 
-See repository for license details.
+This was vibe coded, so it belongs to the machines. Ask them.
