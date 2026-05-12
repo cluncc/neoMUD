@@ -38,7 +38,7 @@ lore = [
 flags = { safe = true }
 [rooms.descriptions]
 night = "Under the stars, the crystal obelisk at the center of the Hub blazes with cold blue light. Its glow casts long shadows across the ancient flagstones. A few night-owls and insomniacs sit on the benches nearby."
-rain = "The rain drums on the awnings that have been hastily deployed around the Hub's perimeter. The crystal obelisk seems to glow more intensely in the wet weather, its light refracting in the puddles at your feet."
+"heavy rain" = "The rain drums on the awnings that have been hastily deployed around the Hub's perimeter. The crystal obelisk seems to glow more intensely in the wet weather, its light refracting in the puddles at your feet."
 [rooms.exits]
 south = "nexus:entrance"
 north = "nexus:library"

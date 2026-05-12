@@ -14,7 +14,7 @@ description = "The road ends here and a narrow trail disappears into the trees. 
 flags = { outside = true }
 [rooms.descriptions]
 night = "At night, the forest trail is a place of shifting shadows and unsettling sounds. The trees creak in a wind you can barely feel. Fireflies trace slow arcs between the roots."
-rain = "Rain hammers the canopy overhead, dripping down through the leaves in intermittent streams. The trail has turned to mud, and the forest smells intensely of wet earth."
+"heavy rain" = "Rain hammers the canopy overhead, dripping down through the leaves in intermittent streams. The trail has turned to mud, and the forest smells intensely of wet earth."
 [rooms.exits]
 east = "nexus:entrance"
 west = "deepwood:clearing"

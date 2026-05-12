@@ -56,7 +56,7 @@ script = "library.rhai"
 ### NPC Templates
 
 ```toml
-[npcs.herald]
+[[npc_templates]]
 id = "nexus:herald"
 name = "The Herald"
 script = "herald.rhai"
@@ -66,7 +66,7 @@ script = "herald.rhai"
 ### Item Templates
 
 ```toml
-[items.orb_of_sight]
+[[item_templates]]
 id = "nexus:orb_of_sight"
 name = "Orb of Sight"
 script = "orb.rhai"
@@ -151,8 +151,8 @@ Called when the engine renders a room description. If this function returns a no
 | Field | Type | Description |
 |---|---|---|
 | `ctx.player` | string | Name of the player viewing the room |
-| `ctx.time` | string | Time-of-day label: `"dawn"`, `"morning"`, `"day"`, `"afternoon"`, `"evening"`, `"night"`, `"deep night"` |
-| `ctx.weather` | string | Current weather: `"Clear"`, `"Cloudy"`, `"Rain"`, `"Thunderstorm"`, `"Fog"`, `"Snow"`, `"Blizzard"`, `"Heatwave"` |
+| `ctx.time` | string | Time-of-day label: `"dawn"`, `"morning"`, `"midday"`, `"afternoon"`, `"dusk"`, `"evening"`, `"night"`, `"deep night"` |
+| `ctx.weather` | string | Current weather: `"clear"`, `"partly cloudy"`, `"overcast"`, `"light rain"`, `"heavy rain"`, `"thunderstorm"`, `"foggy"`, `"light snow"`, `"blizzard"`, `"heat wave"` |
 | `ctx.hour` | integer | Game hour, 0–23 |
 
 **Return:** string description, or `""` to use the TOML default.
@@ -564,7 +564,7 @@ Toggle a named flag on a player, NPC, or room.
 #{ action: "set_flag", target: "room", id: "nexus:hub", flag: "safe", value: false }
 ```
 
-Valid room flags: `safe`, `dark`, `outside`, `no_magic`, `no_recall`, `indoors`, `shop`, `bank`, `death_trap`.
+Valid room flags: `safe`, `dark`, `outside`, `water`, `underwater`, `no_magic`, `no_recall`, `indoors`, `shop`, `bank`, `death_trap`.
 
 **On NPCs** — currently supports only `alive` (to kill or revive an NPC by script).
 
@@ -687,15 +687,15 @@ Before reaching for `describe`, check whether the TOML `[descriptions]` table co
 ```toml
 [rooms.descriptions]
 night = "The room is pitch black save for a glowing crystal."
-rain  = "Water drips through a crack in the ceiling."
-night_rain = "The crystal glows dimly through the drumming of rain on stone."
+"heavy rain" = "Water drips through a crack in the ceiling."
+"night_heavy rain" = "The crystal glows dimly through the drumming of rain on stone."
 ```
 
 Keys are matched in priority order: `"time_weather"` > `"time"` > `"weather"` > base `description`. The `describe` script hook overrides all of these when it returns a non-empty string.
 
-Valid time-of-day keys: `dawn`, `morning`, `day`, `afternoon`, `evening`, `night`, `deep night`.
+Valid time-of-day keys: `dawn`, `morning`, `midday`, `afternoon`, `dusk`, `evening`, `night`, `deep night`.
 
-Valid weather keys (case-sensitive, match the `Weather` enum's `Display` output): `Clear`, `Cloudy`, `Rain`, `Thunderstorm`, `Fog`, `Snow`, `Blizzard`, `Heatwave`.
+Valid weather keys (match `Weather`'s `Display` output; quote keys that contain spaces): `clear`, `partly cloudy`, `overcast`, `light rain`, `heavy rain`, `thunderstorm`, `foggy`, `light snow`, `blizzard`, `heat wave`. Combo keys follow the pattern `"time_weather"`, e.g. `"night_heavy rain"`.
 
 ---
 
