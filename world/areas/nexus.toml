@@ -85,6 +85,15 @@ morning = "The inn is quiet in the early morning. A few bleary travelers nurse c
 [rooms.exits]
 east = "nexus:entrance"
 up = "nexus:inn_rooms"
+[[rooms.spawn_items]]
+template = "nexus:leather_sack"
+count = 1
+[[rooms.spawn_items]]
+template = "nexus:blank_journal"
+count = 2
+[[rooms.spawn_items]]
+template = "nexus:herb_bundle"
+count = 3
 [[rooms]]
 id = "inn_rooms"
 name = "The Upstairs Hallway"
@@ -381,3 +390,51 @@ keywords = ["chronicle", "book", "history"]
 item_type = { type = "Book", content = "The Nexus was not built in a single age, nor by a single hand. It grew, as certain places do, from the accumulated weight of meaning. Where travelers congregate, where paths cross and recross, reality itself thins. The Nexus is the thinnest point of all.\n\nWhat we call the 'Nexus' today is already the fourth city on this site. Each predecessor was absorbed into the one that followed, leaving behind architecture and legend in equal measure.\n\nThe obelisk predates all of them." }
 weight = 1.5
 value = 150
+
+[[item_templates]]
+id = "nexus:leather_sack"
+name = "a leather sack"
+short_desc = "A sturdy sack made of thick leather."
+long_desc = "A well-stitched leather sack with a drawstring top. It can hold a fair number of items."
+keywords = ["sack", "leather", "bag", "container"]
+item_type = { type = "Container" }
+container_size = 8
+weight = 0.5
+value = 30
+
+[[item_templates]]
+id = "nexus:blank_journal"
+name = "a blank journal"
+short_desc = "A small blank journal with empty pages."
+long_desc = "A compact journal bound in plain leather. Every page is empty, waiting to be filled."
+keywords = ["journal", "book", "blank", "notebook"]
+item_type = { type = "Book", content = "" }
+weight = 0.3
+value = 20
+
+[[item_templates]]
+id = "nexus:herb_bundle"
+name = "a bundle of dried herbs"
+short_desc = "A tied bundle of assorted dried herbs."
+long_desc = "A handful of common medicinal herbs, dried and bundled with twine. Healers and alchemists prize these."
+keywords = ["herbs", "herb", "bundle", "dried"]
+item_type = { type = "Crafting" }
+weight = 0.2
+value = 15
+
+[[item_templates]]
+id = "nexus:crude_salve"
+name = "a crude healing salve"
+short_desc = "A small clay pot of greenish salve."
+long_desc = "A homemade salve made by grinding herbs into rendered fat. It smells earthy and stings a little, but it works."
+keywords = ["salve", "crude", "healing"]
+item_type = { type = "Consumable" }
+weight = 0.3
+value = 40
+
+[item_templates.consumable]
+heal_hp = 15
+
+[[item_templates.craft_recipes]]
+ingredients = ["nexus:herb_bundle", "nexus:antidote"]
+result = "nexus:crude_salve"

@@ -679,6 +679,7 @@ async fn cmd_tell(handle: &GameHandle, player_name: &str, args: &str) {
         Some(name) => {
             state.tell_player(&name, &tell_text(&format!("{} tells you: \"{}\"", player_name, msg)), &handle.sessions).await;
             state.tell_player(player_name, &tell_text(&format!("You tell {}: \"{}\"", name, msg)), &handle.sessions).await;
+            handle.last_tell.insert(name.to_string(), player_name.to_string());
         }
     }
 }
@@ -749,9 +750,35 @@ async fn cmd_whisper(handle: &GameHandle, player_name: &str, args: &str) {
     }
 }
 
-async fn cmd_reply(handle: &GameHandle, player_name: &str, _args: &str) {
-    // Simple stub — remember last tell sender per session would require session state
-    handle.state.read().await.tell_player(player_name, &info_msg("(Reply requires tracking last sender — use 'tell' for now.)"), &handle.sessions).await;
+async fn cmd_reply(handle: &GameHandle, player_name: &str, args: &str) {
+    if args.is_empty() {
+        handle.state.read().await.tell_player(player_name, &error_msg("Reply what?"), &handle.sessions).await;
+        return;
+    }
+    let sender = match handle.last_tell.get(player_name) {
+        Some(r) => r.clone(),
+        None => {
+            handle.state.read().await.tell_player(player_name, &error_msg("No one to reply to."), &handle.sessions).await;
+            return;
+        }
+    };
+    // Reuse tell logic: validate length, find recipient, deliver
+    if args.len() > MAX_MSG_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Message too long (max 200 characters)."), &handle.sessions).await;
+        return;
+    }
+    let state = handle.state.read().await;
+    let target_name = find_player_name(&state.players, &sender).map(|s| s.to_string());
+    match target_name {
+        None => {
+            state.tell_player(player_name, &error_msg(&format!("{} is no longer online.", sender)), &handle.sessions).await;
+        }
+        Some(name) => {
+            state.tell_player(&name, &tell_text(&format!("{} tells you: \"{}\"", player_name, args)), &handle.sessions).await;
+            state.tell_player(player_name, &tell_text(&format!("You tell {}: \"{}\"", name, args)), &handle.sessions).await;
+            handle.last_tell.insert(name.to_string(), player_name.to_string());
+        }
+    }
 }
 
 // ─── Items ───────────────────────────────────────────────────────────────────
@@ -823,8 +850,90 @@ async fn cmd_drop(handle: &GameHandle, player_name: &str, args: &str) {
     }
 }
 
-async fn cmd_put(handle: &GameHandle, player_name: &str, _args: &str) {
-    handle.state.read().await.tell_player(player_name, &info_msg("Putting items in containers is not yet supported."), &handle.sessions).await;
+async fn cmd_put(handle: &GameHandle, player_name: &str, args: &str) {
+    // Syntax: put <item> in <container>
+    let lower = args.to_lowercase();
+    let Some(in_pos) = lower.find(" in ") else {
+        handle.state.read().await.tell_player(player_name, &error_msg("Put what in what? (put <item> in <container>)"), &handle.sessions).await;
+        return;
+    };
+    let item_kw = lower[..in_pos].trim();
+    let cont_kw = lower[in_pos + 4..].trim();
+    if item_kw.is_empty() || cont_kw.is_empty() {
+        handle.state.read().await.tell_player(player_name, &error_msg("Put what in what? (put <item> in <container>)"), &handle.sessions).await;
+        return;
+    }
+
+    let mut state = handle.state.write().await;
+    let player = match state.players.get(player_name) { Some(p) => p, None => return };
+
+    // Locate the container by keyword
+    let cont_pos = player.inventory.iter().position(|i| {
+        i.name.to_lowercase().contains(cont_kw) || i.template_id.to_lowercase().contains(cont_kw)
+    });
+    let cont_pos = match cont_pos {
+        Some(p) => p,
+        None => {
+            state.tell_player(player_name, &error_msg("You don't have that container."), &handle.sessions).await;
+            return;
+        }
+    };
+
+    // Verify it's actually a Container type
+    let (is_container, capacity) = {
+        let tmpl_id = &state.players[player_name].inventory[cont_pos].template_id;
+        match state.world.get_item_template(tmpl_id).map(|t| &t.item_type) {
+            Some(ItemType::Container) => {
+                let cap = state.world.get_item_template(tmpl_id)
+                    .and_then(|t| t.container_size)
+                    .unwrap_or(10);
+                (true, cap)
+            }
+            _ => (false, 0),
+        }
+    };
+    if !is_container {
+        state.tell_player(player_name, &error_msg("That's not a container."), &handle.sessions).await;
+        return;
+    }
+
+    // Make sure item_kw doesn't match the container itself
+    {
+        let cont = &state.players[player_name].inventory[cont_pos];
+        if cont.name.to_lowercase().contains(item_kw) || cont.template_id.to_lowercase().contains(item_kw) {
+            state.tell_player(player_name, &error_msg("You can't put a container inside itself."), &handle.sessions).await;
+            return;
+        }
+    }
+
+    // Find item to put in (different index from container)
+    let item_pos = state.players[player_name].inventory.iter()
+        .enumerate()
+        .find(|(idx, i)| *idx != cont_pos && (i.name.to_lowercase().contains(item_kw) || i.template_id.to_lowercase().contains(item_kw)))
+        .map(|(idx, _)| idx);
+    let item_pos = match item_pos {
+        Some(p) => p,
+        None => {
+            state.tell_player(player_name, &error_msg("You don't have that item."), &handle.sessions).await;
+            return;
+        }
+    };
+
+    // Check capacity
+    if state.players[player_name].inventory[cont_pos].contents.len() >= capacity as usize {
+        state.tell_player(player_name, &error_msg("The container is full."), &handle.sessions).await;
+        return;
+    }
+
+    let player = state.players.get_mut(player_name).unwrap();
+    let item = player.inventory.remove(item_pos);
+    // cont_pos may have shifted if item_pos < cont_pos
+    let real_cont_pos = if item_pos < cont_pos { cont_pos - 1 } else { cont_pos };
+    let cont = &mut player.inventory[real_cont_pos];
+    let item_n = item.name.clone();
+    let cont_n = cont.name.clone();
+    cont.contents.push(item);
+    state.tell_player(player_name, &success_msg(&format!("You put {} in {}.", item_n, cont_n)), &handle.sessions).await;
 }
 
 async fn cmd_give(handle: &GameHandle, player_name: &str, args: &str) {
@@ -1100,11 +1209,12 @@ async fn cmd_list(handle: &GameHandle, player_name: &str) {
 }
 
 async fn cmd_craft(handle: &GameHandle, player_name: &str, args: &str) {
-    // "craft <item1> with <item2>"
-    let state = handle.state.read().await;
-    let player = match state.players.get(player_name) { Some(p) => p, None => return };
-    // Stub: show known recipes
-    if args.is_empty() || args == "list" {
+    // Syntax: craft list  OR  craft <item1> with <item2>
+    let args_lower = args.to_lowercase();
+
+    if args_lower.is_empty() || args_lower == "list" {
+        let state = handle.state.read().await;
+        let player = match state.players.get(player_name) { Some(p) => p, None => return };
         if player.known_recipes.is_empty() {
             state.tell_player(player_name, &info_msg("You don't know any recipes yet. Experiment to discover them!"), &handle.sessions).await;
         } else {
@@ -1114,7 +1224,108 @@ async fn cmd_craft(handle: &GameHandle, player_name: &str, args: &str) {
         }
         return;
     }
-    state.tell_player(player_name, &info_msg("Crafting: combine items by typing 'craft <item1> with <item2>'. Some combinations reveal new recipes!"), &handle.sessions).await;
+
+    // Parse "X with Y"
+    let Some(with_pos) = args_lower.find(" with ") else {
+        handle.state.read().await.tell_player(player_name, &error_msg("Craft what with what? (craft <item> with <item>)"), &handle.sessions).await;
+        return;
+    };
+    let kw1 = args_lower[..with_pos].trim();
+    let kw2 = args_lower[with_pos + 6..].trim();
+    if kw1.is_empty() || kw2.is_empty() {
+        handle.state.read().await.tell_player(player_name, &error_msg("Craft what with what? (craft <item> with <item>)"), &handle.sessions).await;
+        return;
+    }
+
+    let mut state = handle.state.write().await;
+    let player = match state.players.get(player_name) { Some(p) => p, None => return };
+
+    // Find both ingredient items in player's inventory
+    let pos1 = player.inventory.iter().position(|i| {
+        i.name.to_lowercase().contains(kw1) || i.template_id.to_lowercase().contains(kw1)
+    });
+    let pos1 = match pos1 {
+        Some(p) => p,
+        None => {
+            state.tell_player(player_name, &error_msg(&format!("You don't have '{}'.", kw1)), &handle.sessions).await;
+            return;
+        }
+    };
+    let pos2 = player.inventory.iter()
+        .enumerate()
+        .find(|(idx, i)| *idx != pos1 && (i.name.to_lowercase().contains(kw2) || i.template_id.to_lowercase().contains(kw2)))
+        .map(|(idx, _)| idx);
+    let pos2 = match pos2 {
+        Some(p) => p,
+        None => {
+            state.tell_player(player_name, &error_msg(&format!("You don't have '{}'.", kw2)), &handle.sessions).await;
+            return;
+        }
+    };
+
+    let ing_id1 = player.inventory[pos1].template_id.clone();
+    let ing_id2 = player.inventory[pos2].template_id.clone();
+
+    // Search all item templates for a recipe whose ingredients are these two items
+    let recipe = state.world.item_templates.values()
+        .flat_map(|tmpl| tmpl.craft_recipes.iter().map(move |r| (tmpl.id.clone(), tmpl.name.clone(), r.clone())))
+        .find(|(_, _, r)| {
+            let ids: std::collections::HashSet<&str> = r.ingredients.iter().map(|s| s.as_str()).collect();
+            ids.contains(ing_id1.as_str()) && ids.contains(ing_id2.as_str()) && r.ingredients.len() == 2
+        });
+
+    // Also search area-local templates
+    let recipe = if recipe.is_none() {
+        state.world.areas.values()
+            .flat_map(|a| a.item_templates.values())
+            .flat_map(|tmpl| tmpl.craft_recipes.iter().map(move |r| (tmpl.id.clone(), tmpl.name.clone(), r.clone())))
+            .find(|(_, _, r)| {
+                let ids: std::collections::HashSet<&str> = r.ingredients.iter().map(|s| s.as_str()).collect();
+                ids.contains(ing_id1.as_str()) && ids.contains(ing_id2.as_str()) && r.ingredients.len() == 2
+            })
+    } else {
+        recipe
+    };
+
+    let (result_id, result_item_name, recipe) = match recipe {
+        Some((id, name, r)) => (id, name, r),
+        None => {
+            state.tell_player(player_name, &info_msg("Nothing happens. Those items don't seem to combine into anything useful."), &handle.sessions).await;
+            return;
+        }
+    };
+
+    // Check skill requirement
+    if let (Some(skill_name), Some(req_level)) = (&recipe.skill_required, recipe.skill_level) {
+        let player_skill_level = state.players[player_name].skills.get(skill_name).map(|s| s.level).unwrap_or(0);
+        if player_skill_level < req_level {
+            state.tell_player(player_name, &error_msg(&format!("You need {} level {} to craft that.", skill_name, req_level)), &handle.sessions).await;
+            return;
+        }
+    }
+
+    // Consume ingredients (remove from inventory)
+    let player = state.players.get_mut(player_name).unwrap();
+    let (lo, hi) = if pos1 < pos2 { (pos1, pos2) } else { (pos2, pos1) };
+    let item_n1 = player.inventory[lo].name.clone();
+    let item_n2 = player.inventory[hi].name.clone();
+    player.inventory.remove(hi);
+    player.inventory.remove(lo);
+
+    // Create result item
+    let result_tmpl = state.world.get_item_template(&result_id).cloned();
+    let result_name = result_tmpl.as_ref().map(|t| t.name.clone()).unwrap_or(result_item_name);
+    let result_instance = ItemInstance::new(&result_id, &result_name);
+    let result_display = result_instance.name.clone();
+
+    // Learn recipe if new
+    let recipe_label = format!("{} + {} → {}", item_n1, item_n2, result_display);
+    let player = state.players.get_mut(player_name).unwrap();
+    if !player.known_recipes.contains(&recipe_label) {
+        player.known_recipes.push(recipe_label.clone());
+    }
+    player.inventory.push(result_instance);
+    state.tell_player(player_name, &success_msg(&format!("You combine {} and {} to create {}!", item_n1, item_n2, result_display)), &handle.sessions).await;
 }
 
 // ─── Talk / Dialogue ──────────────────────────────────────────────────────────
@@ -1436,12 +1647,48 @@ async fn cmd_unalias(handle: &GameHandle, player_name: &str, args: &str) {
     }
 }
 
-async fn cmd_write(handle: &GameHandle, player_name: &str, _args: &str) {
-    // "write book <title>" or "write sign <text>"
-    let state = handle.state.read().await;
-    state.tell_player(player_name,
-        &info_msg("Writing: To write a book, type 'write book <title>'. The game will prompt for content."),
-        &handle.sessions).await;
+async fn cmd_write(handle: &GameHandle, player_name: &str, args: &str) {
+    // Syntax: write <item> <text>
+    let (item_kw, text) = parse_input(args);
+    if item_kw.is_empty() || text.is_empty() {
+        handle.state.read().await.tell_player(player_name, &error_msg("Write what? (write <item> <text>)"), &handle.sessions).await;
+        return;
+    }
+    const MAX_WRITE_LEN: usize = 500;
+    if text.len() > MAX_WRITE_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Text too long (max 500 characters)."), &handle.sessions).await;
+        return;
+    }
+    let mut state = handle.state.write().await;
+    let player = match state.players.get(player_name) { Some(p) => p, None => return };
+
+    // Confirm the item is a Book type before mutating
+    let item_pos = player.inventory.iter().position(|i| {
+        i.name.to_lowercase().contains(&item_kw.to_lowercase()) ||
+        i.template_id.to_lowercase().contains(&item_kw.to_lowercase())
+    });
+    let item_pos = match item_pos {
+        Some(p) => p,
+        None => {
+            state.tell_player(player_name, &error_msg("You don't have that."), &handle.sessions).await;
+            return;
+        }
+    };
+
+    let is_book = {
+        let tmpl_id = &state.players[player_name].inventory[item_pos].template_id;
+        matches!(state.world.get_item_template(tmpl_id).map(|t| &t.item_type), Some(ItemType::Book { .. }))
+    };
+    if !is_book {
+        state.tell_player(player_name, &error_msg("You can only write in a book."), &handle.sessions).await;
+        return;
+    }
+
+    let player = state.players.get_mut(player_name).unwrap();
+    let item = &mut player.inventory[item_pos];
+    item.custom_desc = Some(text.to_string());
+    let item_n = item.name.clone();
+    state.tell_player(player_name, &success_msg(&format!("You write in {}.", item_n)), &handle.sessions).await;
 }
 
 async fn cmd_read(handle: &GameHandle, player_name: &str, args: &str) {
@@ -1452,7 +1699,8 @@ async fn cmd_read(handle: &GameHandle, player_name: &str, args: &str) {
         if let Some(tmpl) = state.world.get_item_template(&item.template_id) {
             match &tmpl.item_type {
                 ItemType::Book { content } => {
-                    state.tell_player(player_name, &format!("\r\n--- {} ---\r\n{}\r\n---\r\n", bold(&item.name), content), &handle.sessions).await;
+                    let text = item.custom_desc.as_deref().unwrap_or(content.as_str());
+                    state.tell_player(player_name, &format!("\r\n--- {} ---\r\n{}\r\n---\r\n", bold(&item.name), text), &handle.sessions).await;
                 }
                 _ => { state.tell_player(player_name, &error_msg("That's not readable."), &handle.sessions).await; }
             }
@@ -1794,15 +2042,6 @@ pub fn hash_password(password: &str) -> String {
 }
 
 pub fn verify_password(stored_hash: &str, password: &str) -> bool {
-    // Legacy SHA-256: 64-char lowercase hex
-    if stored_hash.len() == 64 && stored_hash.chars().all(|c| c.is_ascii_hexdigit()) {
-        use sha2::{Sha256, Digest};
-        let mut hasher = Sha256::new();
-        hasher.update(password.as_bytes());
-        let computed = hex::encode(hasher.finalize());
-        // Constant-time comparison to prevent timing side-channel attacks
-        return ct_eq(&computed, stored_hash);
-    }
     use argon2::{
         password_hash::{PasswordHash, PasswordVerifier},
         Argon2,
@@ -1811,11 +2050,5 @@ pub fn verify_password(stored_hash: &str, password: &str) -> bool {
         .ok()
         .map(|hash| Argon2::default().verify_password(password.as_bytes(), &hash).is_ok())
         .unwrap_or(false)
-}
-
-/// Constant-time string comparison to prevent timing side-channel attacks.
-fn ct_eq(a: &str, b: &str) -> bool {
-    if a.len() != b.len() { return false; }
-    a.bytes().zip(b.bytes()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 

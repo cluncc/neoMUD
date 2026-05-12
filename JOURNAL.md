@@ -22,7 +22,7 @@ Every room, NPC, and item can have a `.rhai` script in `world/scripts/`. Scripts
 
 ### Argon2id (password hashing)
 
-Player passwords are hashed with Argon2id using a random salt (via the `argon2 0.5` crate). The verify path also accepts legacy SHA-256 hex hashes (64 hex chars) for backward compatibility during a migration period. New accounts always receive Argon2id hashes.
+Player passwords are hashed with Argon2id using a random salt (via the `argon2 0.5` crate). All accounts use Argon2id hashes.
 
 ### DashMap
 
@@ -320,15 +320,24 @@ Player saves are JSON files in `data/players/`. They can be backed up with any s
 - **Post-death counter-attack**: After a player died in combat and was respawned at 1 HP, the combat loop would execute a counter-attack because `is_alive()` returned true on the respawned player. The fix checks `in_combat_with.is_none()` (which is set to None by `handle_player_death`) before executing the counter-attack.
 - **NPC respawn MP not reset**: `process_respawns` restored HP but not MP. NPC mana is now also fully restored on respawn.
 - **`cmd_flee` missing room render**: After a successful flee, the player's room changed but no room description was shown. `drop(state)` + `render_room` is now called after a successful flee.
-- **`cmd_put` silent no-op**: The `put` command dispatched to an empty function that returned nothing, giving the player no feedback. It now returns an informational message.
+- **`cmd_put` silent no-op**: The `put` command dispatched to an empty function that returned nothing, giving the player no feedback. It now supports "put X in Y" with full container validation.
+
+### Feature Implementations
+
+- **`cmd_reply`**: Added `last_tell: Arc<DashMap<String, String>>` to `GameHandle`. `cmd_tell` now records the sender in that map whenever a tell is delivered; `cmd_reply` looks up the last sender and reuses the tell flow.
+- **`cmd_put`**: Fully implemented. Parses "put X in Y", validates both items are in the player's inventory, checks the container's `ItemType::Container` type and its `container_size` capacity, adjusts indices correctly when removing the item before inserting into contents, and rejects putting a container inside itself.
+- **`cmd_write`**: Writes arbitrary text into a `Book`-type inventory item by setting `ItemInstance.custom_desc`. Enforces a 500-character limit. `cmd_read` was updated to prefer `custom_desc` over the template's built-in content, so player-written text is displayed when reading.
+- **`cmd_craft`**: Fully implemented. Parses "craft X with Y", finds matching ingredient items in inventory, searches all item templates (global and area-local) for a `CraftRecipe` whose two-item ingredient list matches, checks optional skill requirements, consumes both ingredients, creates the result item, and records the recipe label in `player.known_recipes`. "craft list" still works to display known recipes.
+- **World data**: Added `nexus:leather_sack` (Container, capacity 8), `nexus:blank_journal` (writable Book), `nexus:herb_bundle` (Crafting ingredient), and `nexus:crude_salve` (Consumable result with a craft recipe that combines herb_bundle + antidote). The inn room now spawns the sack, two journals, and three herb bundles so players can find them at start.
 
 ### Security Hardening
 
-- **SHA-256 constant-time comparison**: Legacy SHA-256 password verification used `== stored_hash` which is a regular string comparison and leaks timing information. Replaced with a constant-time byte-by-byte XOR comparison (`ct_eq`).
+- **SHA-256 constant-time comparison**: Legacy SHA-256 password verification used `== stored_hash` which is a regular string comparison and leaks timing information. Replaced with a constant-time byte-by-byte XOR comparison (`ct_eq`). The legacy path has since been removed entirely (see below).
 - **Message length limits**: Communication commands (`say`, `tell`, `shout`, `chat`) now enforce a 200-character limit; `emote` enforces 150 characters. Previously, the only limit was the 512-byte socket input buffer.
 
 ### Dead Code Removal
 
+- Removed legacy SHA-256 password verification path, `ct_eq` helper, and `sha2`/`hex` crate dependencies. All stored hashes are Argon2id; any SHA-256 player files will simply fail to authenticate, prompting a new account.
 - Removed `Player::in_combat_with_player` (PvP not implemented; `is_in_combat()` now only checks NPC combat).
 - Removed `AuthoredBook` struct and `authored_books` field (write is a stub; field was never populated).
 - Removed `Player::find_item_mut` (unused; `find_item` + `take_item` cover all call sites).
@@ -344,4 +353,3 @@ Player saves are JSON files in `data/players/`. They can be backed up with any s
 - **Single-process**: The game state is in-process memory. Horizontal scaling would require extracting state to an external store (Redis, etc.).
 - **No account system**: Each character name is a separate identity. Alts are trivially created.
 - **No rate limiting** on new character creation or failed logins beyond the 1-second SSH rejection delay.
-- **Legacy SHA-256 backward compat** should be removed once all existing players have logged in at least once (triggering an Argon2id rehash) or a forced migration is run.

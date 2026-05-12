@@ -141,7 +141,7 @@ fn on_enter(ctx) {
 cargo test
 ```
 
-87 integration tests covering command parsing, password hashing, name sanitization, character creation, world TOML parsing, player persistence, scripting, color utilities, combat formulas, entity logic, and time/weather systems.
+85 integration tests covering command parsing, password hashing, name sanitization, character creation, world TOML parsing, player persistence, scripting, color utilities, combat formulas, entity logic, and time/weather systems.
 
 ## Authors
 

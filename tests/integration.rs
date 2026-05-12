@@ -67,20 +67,6 @@ mod passwords {
     }
 
     #[test]
-    fn legacy_sha256_accepted() {
-        // Pre-computed SHA-256 of "oldpassword"
-        let sha256_hex = sha256_hex("oldpassword");
-        assert_eq!(sha256_hex.len(), 64);
-        assert!(verify_password(&sha256_hex, "oldpassword"));
-    }
-
-    #[test]
-    fn legacy_sha256_wrong_password_rejected() {
-        let sha256_hex = sha256_hex("oldpassword");
-        assert!(!verify_password(&sha256_hex, "notoldpassword"));
-    }
-
-    #[test]
     fn garbage_hash_rejected() {
         assert!(!verify_password("this-is-not-a-valid-hash", "anything"));
     }
@@ -99,13 +85,6 @@ mod passwords {
         let hash = hash_password(&long);
         assert!(verify_password(&hash, &long));
         assert!(!verify_password(&hash, "a"));
-    }
-
-    fn sha256_hex(s: &str) -> String {
-        use sha2::{Digest, Sha256};
-        let mut h = Sha256::new();
-        h.update(s.as_bytes());
-        hex::encode(h.finalize())
     }
 }
 

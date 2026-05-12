@@ -858,6 +858,8 @@ pub struct GameHandle {
     pub events: EventBus,
     pub scripts: Arc<ScriptEngine>,
     pub config: Config,
+    /// Maps player name → name of the last player who sent them a tell.
+    pub last_tell: Arc<DashMap<String, String>>,
 }
 
 impl GameHandle {
@@ -866,7 +868,8 @@ impl GameHandle {
         let sessions = Arc::new(DashMap::new());
         let events = create_event_bus(1024);
         let scripts = Arc::new(ScriptEngine::new(&config.game.world_path));
-        Ok(GameHandle { state, sessions, events, scripts, config })
+        let last_tell = Arc::new(DashMap::new());
+        Ok(GameHandle { state, sessions, events, scripts, config, last_tell })
     }
 
     pub async fn tick(&self) {
