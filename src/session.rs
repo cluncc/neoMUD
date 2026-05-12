@@ -42,16 +42,17 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
 
     let (tx, mut rx): (mpsc::Sender<String>, mpsc::Receiver<String>) = mpsc::channel(256);
 
-    // Negotiate telnet options
-    let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_ECHO]).await;
+    // Negotiate telnet options: let the client handle local echo (WONT ECHO),
+    // and ask for window size (DO NAWS).
+    let _ = writer.write_all(&[TELNET_IAC, TELNET_WONT, TELNET_ECHO]).await;
     let _ = writer.write_all(&[TELNET_IAC, TELNET_DO, TELNET_NAWS]).await;
     let _ = writer.flush().await;
 
     let mut input_buf = Vec::<u8>::with_capacity(256);
     let mut raw_buf = [0u8; 512];
 
-    // Send MOTD
-    let motd = handle.config.server.motd.clone();
+    // Send MOTD — normalise bare \n to \r\n for telnet
+    let motd = handle.config.server.motd.replace('\n', "\r\n");
     let _ = writer.write_all(bright_cyan(&motd).as_bytes()).await;
     let _ = writer.write_all(b"\r\n").await;
     let _ = writer.write_all(bright_white("What is your name? ").as_bytes()).await;
@@ -87,13 +88,13 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                     let exists = Player::exists(&handle.config.game.players_path, &name);
                                     if exists {
                                         let _ = writer.write_all(format!("Welcome back, {}! Password: ", bright_white(&name)).as_bytes()).await;
-                                        // Disable echo for password
-                                        let _ = writer.write_all(&[TELNET_IAC, TELNET_WONT, TELNET_ECHO]).await;
+                                        // Suppress client echo for password entry
+                                        let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_ECHO]).await;
                                         let _ = writer.flush().await;
                                         phase = SessionPhase::AwaitingPassword(name);
                                     } else {
                                         let _ = writer.write_all(format!("Creating new character '{}'.\r\nPassword: ", bright_white(&name)).as_bytes()).await;
-                                        let _ = writer.write_all(&[TELNET_IAC, TELNET_WONT, TELNET_ECHO]).await;
+                                        let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_ECHO]).await;
                                         let _ = writer.flush().await;
                                         // Use AwaitingPassword but we'll detect new char after
                                         phase = SessionPhase::AwaitingPassword(format!("new:{}", name));
@@ -101,8 +102,8 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                 }
 
                                 SessionPhase::AwaitingPassword(name_tag) => {
-                                    // Re-enable echo
-                                    let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_ECHO]).await;
+                                    // Restore client-side echo now that password is submitted
+                                    let _ = writer.write_all(&[TELNET_IAC, TELNET_WONT, TELNET_ECHO]).await;
                                     let hash = hash_password(&line);
 
                                     if name_tag.starts_with("new:") {
