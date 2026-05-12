@@ -592,9 +592,16 @@ fn render_mini_map(center: &crate::world::Room, world: &crate::world::World, _de
 
 // ─── Communication ────────────────────────────────────────────────────────────
 
+const MAX_MSG_LEN: usize = 200;
+const MAX_EMOTE_LEN: usize = 150;
+
 async fn cmd_say(handle: &GameHandle, player_name: &str, msg: &str) {
     if msg.is_empty() {
         handle.state.read().await.tell_player(player_name, &error_msg("Say what?"), &handle.sessions).await;
+        return;
+    }
+    if msg.len() > MAX_MSG_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Message too long (max 200 characters)."), &handle.sessions).await;
         return;
     }
 
@@ -656,6 +663,10 @@ async fn cmd_tell(handle: &GameHandle, player_name: &str, args: &str) {
         handle.state.read().await.tell_player(player_name, &error_msg("Tell whom, what?"), &handle.sessions).await;
         return;
     }
+    if msg.len() > MAX_MSG_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Message too long (max 200 characters)."), &handle.sessions).await;
+        return;
+    }
     let state = handle.state.read().await;
     let target_name = find_player_name(&state.players, target);
     match target_name {
@@ -674,6 +685,10 @@ async fn cmd_shout(handle: &GameHandle, player_name: &str, msg: &str) {
         handle.state.read().await.tell_player(player_name, &error_msg("Shout what?"), &handle.sessions).await;
         return;
     }
+    if msg.len() > MAX_MSG_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Message too long (max 200 characters)."), &handle.sessions).await;
+        return;
+    }
     let state = handle.state.read().await;
     let player = match state.players.get(player_name) { Some(p) => p.clone(), None => return };
     let area_id = player.room.split(':').next().unwrap_or("nexus").to_string();
@@ -689,6 +704,10 @@ async fn cmd_emote(handle: &GameHandle, player_name: &str, action: &str) {
         handle.state.read().await.tell_player(player_name, &error_msg("Emote what?"), &handle.sessions).await;
         return;
     }
+    if action.len() > MAX_EMOTE_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Emote too long (max 150 characters)."), &handle.sessions).await;
+        return;
+    }
     let state = handle.state.read().await;
     let room_id = match state.players.get(player_name) { Some(p) => p.room.clone(), None => return };
     let msg = italic(&format!("{} {}", player_name, action));
@@ -701,6 +720,10 @@ async fn cmd_emote(handle: &GameHandle, player_name: &str, action: &str) {
 async fn cmd_chat(handle: &GameHandle, player_name: &str, msg: &str) {
     if msg.is_empty() {
         handle.state.read().await.tell_player(player_name, &error_msg("Chat what?"), &handle.sessions).await;
+        return;
+    }
+    if msg.len() > MAX_MSG_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Message too long (max 200 characters)."), &handle.sessions).await;
         return;
     }
     let state = handle.state.read().await;
@@ -797,8 +820,8 @@ async fn cmd_drop(handle: &GameHandle, player_name: &str, args: &str) {
     }
 }
 
-async fn cmd_put(_handle: &GameHandle, _player: &str, _args: &str) {
-    // TODO: put item in container
+async fn cmd_put(handle: &GameHandle, player_name: &str, _args: &str) {
+    handle.state.read().await.tell_player(player_name, &info_msg("Putting items in containers is not yet supported."), &handle.sessions).await;
 }
 
 async fn cmd_give(handle: &GameHandle, player_name: &str, args: &str) {
@@ -1001,15 +1024,15 @@ async fn cmd_buy(handle: &GameHandle, player_name: &str, args: &str) {
             let resolved_name = state.world.get_item_template(&tmpl_id)
                 .map(|t| t.name.clone())
                 .unwrap_or_else(|| tmpl_id.clone());
-            let (_can_afford, buy_msg) = {
+            let buy_msg = {
                 let player = state.players.get_mut(player_name).unwrap();
                 if player.coins < price {
-                    (false, error_msg(&format!("You can't afford that ({} coins needed).", price)))
+                    error_msg(&format!("You can't afford that ({} coins needed).", price))
                 } else {
                     player.coins -= price;
                     let item = ItemInstance::new(&tmpl_id, &resolved_name);
                     player.inventory.push(item);
-                    (true, success_msg(&format!("You buy {} for {} coins.", resolved_name, price)))
+                    success_msg(&format!("You buy {} for {} coins.", resolved_name, price))
                 }
             };
             state.tell_player(player_name, &buy_msg, &handle.sessions).await;
@@ -1188,6 +1211,8 @@ async fn cmd_flee(handle: &GameHandle, player_name: &str) {
             }
         }
         state.tell_player(player_name, &yellow("You panic and flee!"), &handle.sessions).await;
+        drop(state);
+        render_room(handle, player_name).await;
     } else {
         state.tell_player(player_name, &error_msg("You fail to flee!"), &handle.sessions).await;
     }
@@ -1641,7 +1666,9 @@ pub fn verify_password(stored_hash: &str, password: &str) -> bool {
         use sha2::{Sha256, Digest};
         let mut hasher = Sha256::new();
         hasher.update(password.as_bytes());
-        return hex::encode(hasher.finalize()) == stored_hash;
+        let computed = hex::encode(hasher.finalize());
+        // Constant-time comparison to prevent timing side-channel attacks
+        return ct_eq(&computed, stored_hash);
     }
     use argon2::{
         password_hash::{PasswordHash, PasswordVerifier},
@@ -1651,5 +1678,11 @@ pub fn verify_password(stored_hash: &str, password: &str) -> bool {
         .ok()
         .map(|hash| Argon2::default().verify_password(password.as_bytes(), &hash).is_ok())
         .unwrap_or(false)
+}
+
+/// Constant-time string comparison to prevent timing side-channel attacks.
+fn ct_eq(a: &str, b: &str) -> bool {
+    if a.len() != b.len() { return false; }
+    a.bytes().zip(b.bytes()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
 }
 

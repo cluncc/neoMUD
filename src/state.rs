@@ -107,8 +107,6 @@ impl GameState {
             memory: vec![],
             status_effects: vec![],
             respawn_at_tick: None,
-            patrol_path: None,
-            patrol_index: 0,
         };
 
         // Add to room
@@ -442,6 +440,8 @@ impl GameState {
                                     "safe"       => room.flags.safe = value,
                                     "dark"       => room.flags.dark = value,
                                     "outside"    => room.flags.outside = value,
+                                    "water"      => room.flags.water = value,
+                                    "underwater" => room.flags.underwater = value,
                                     "no_magic"   => room.flags.no_magic = value,
                                     "no_recall"  => room.flags.no_recall = value,
                                     "indoors"    => room.flags.indoors = value,
@@ -558,8 +558,9 @@ impl GameState {
             }
 
             // Counter-attack: player → NPC
+            // Skip if player died or fled (in_combat_with cleared by handle_player_death)
             let player = match self.players.get(&player_name) { Some(p) => p.clone(), None => continue };
-            if !player.stats.is_alive() { continue; }
+            if !player.stats.is_alive() || player.in_combat_with.is_none() { continue; }
             let npc = match self.npcs.get_mut(&npc_id) { Some(n) => n, None => continue };
             let (hit2, crit2) = roll_hit(&player.stats, &npc.stats, base_hit);
             if hit2 {
@@ -804,6 +805,8 @@ impl GameState {
                     let tmpl = tmpl.clone();
                     npc.stats.hp = tmpl.base_hp;
                     npc.stats.max_hp = tmpl.base_hp;
+                    npc.stats.mp = tmpl.base_mp;
+                    npc.stats.max_mp = tmpl.base_mp;
                     npc.alive = true;
                     npc.respawn_at_tick = None;
                     npc.in_combat_with = None;

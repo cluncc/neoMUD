@@ -11,7 +11,6 @@ pub mod session;
 pub mod state;
 pub mod world;
 
-// combat, error, server, ssh, time are internal only (not needed by integration tests)
+// combat, server, ssh, time are internal only (not needed by integration tests)
 pub mod combat;
-pub mod error;
 pub mod time;

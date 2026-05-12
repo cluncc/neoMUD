@@ -3,7 +3,6 @@ mod combat;
 mod commands;
 mod config;
 mod entity;
-mod error;
 mod events;
 mod scripting;
 mod server;

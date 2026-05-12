@@ -55,7 +55,7 @@ src/
 ├── combat.rs     — attack resolution, damage formulas, combat messages
 ├── color.rs      — ANSI color/style helpers, health bar, output formatting
 ├── events.rs     — GameEvent enum (PlayerConnected, PlayerDisconnected, etc.)
-├── error.rs      — MudError enum (thiserror)
+├── error.rs      — reserved (empty)
 ├── server.rs     — telnet TCP listener
 └── time.rs       — in-game time / weather cycle
 ```
@@ -192,6 +192,10 @@ Integration tests live in `tests/integration.rs` and cover:
 | `player_io` | Save/reload round-trip, exists before/after save, load of nonexistent player, path traversal via name, slash in load name, name mismatch in tampered file |
 | `scripting` | Missing script → empty action list, missing script → None describe |
 | `color` | ANSI wrapping, health bar non-empty at 0/max/over-max HP |
+| `combat` | Damage floor ≥1, critical doubles damage, lethal vs partial damage, XP level scaling, flee returns bool, poison DoT, regen HoT, expired effects removed |
+| `entity` | Level-up XP threshold, HP/MP gains on level-up, reputation all tiers + clamping, find_item / take_item by keyword, Stats for class+race combos, is_in_combat default false |
+| `time_tests` | time_of_day for all hour ranges, tick advances clock, weather transition no panic, weather Display strings are lowercase |
+| `world_tests` | contextual_description fallback, night variant, heavy-rain variant differs from clear |
 
 Run all tests with:
 
@@ -305,6 +309,32 @@ World TOML files are loaded at startup. To add or modify areas, edit or add file
 ### Player Data
 
 Player saves are JSON files in `data/players/`. They can be backed up with any standard file copy. No migration tooling is needed when adding new optional fields — serde's `default` attribute ensures old saves deserialise cleanly.
+
+---
+
+## Changelog
+
+### Bug Fixes
+
+- **`set_flag` scripting action**: `water` and `underwater` room flags were documented in ENGINE.md but silently ignored in `apply_script_actions`. Both flags now map correctly to `RoomFlags`.
+- **Post-death counter-attack**: After a player died in combat and was respawned at 1 HP, the combat loop would execute a counter-attack because `is_alive()` returned true on the respawned player. The fix checks `in_combat_with.is_none()` (which is set to None by `handle_player_death`) before executing the counter-attack.
+- **NPC respawn MP not reset**: `process_respawns` restored HP but not MP. NPC mana is now also fully restored on respawn.
+- **`cmd_flee` missing room render**: After a successful flee, the player's room changed but no room description was shown. `drop(state)` + `render_room` is now called after a successful flee.
+- **`cmd_put` silent no-op**: The `put` command dispatched to an empty function that returned nothing, giving the player no feedback. It now returns an informational message.
+
+### Security Hardening
+
+- **SHA-256 constant-time comparison**: Legacy SHA-256 password verification used `== stored_hash` which is a regular string comparison and leaks timing information. Replaced with a constant-time byte-by-byte XOR comparison (`ct_eq`).
+- **Message length limits**: Communication commands (`say`, `tell`, `shout`, `chat`) now enforce a 200-character limit; `emote` enforces 150 characters. Previously, the only limit was the 512-byte socket input buffer.
+
+### Dead Code Removal
+
+- Removed `Player::in_combat_with_player` (PvP not implemented; `is_in_combat()` now only checks NPC combat).
+- Removed `AuthoredBook` struct and `authored_books` field (write is a stub; field was never populated).
+- Removed `Player::find_item_mut` (unused; `find_item` + `take_item` cover all call sites).
+- Removed `patrol_path` and `patrol_index` from `ActiveNpc` (patrol AI is not implemented; fields were set to `None`/`0` and never read).
+- Removed empty `error.rs` module from module declarations in `main.rs` and `lib.rs`.
+- Cleaned up `_can_afford` unused binding in `cmd_buy`.
 
 ---
 

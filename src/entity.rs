@@ -403,8 +403,6 @@ pub struct ActiveNpc {
     pub memory: Vec<NpcMemory>,
     pub status_effects: Vec<StatusEffect>,
     pub respawn_at_tick: Option<u64>,
-    pub patrol_path: Option<Vec<RoomId>>,
-    pub patrol_index: usize,
 }
 
 impl ActiveNpc {
@@ -457,7 +455,6 @@ pub struct Player {
     pub description: String,
     pub status_effects: Vec<StatusEffect>,
     pub in_combat_with: Option<String>,       // NPC instance id
-    pub in_combat_with_player: Option<String>,
     pub is_admin: bool,
     pub created_at: i64,
     pub last_login: i64,
@@ -465,18 +462,9 @@ pub struct Player {
     pub deaths: u32,
     pub kills: u32,
     #[serde(default)]
-    pub authored_books: Vec<AuthoredBook>,
-    #[serde(default)]
     pub quest_flags: HashMap<String, bool>,
     #[serde(default)]
     pub known_recipes: Vec<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AuthoredBook {
-    pub title: String,
-    pub content: String,
-    pub written_at: i64,
 }
 
 impl Player {
@@ -507,14 +495,12 @@ impl Player {
             description: format!("{} looks like a typical adventurer.", name),
             status_effects: vec![],
             in_combat_with: None,
-            in_combat_with_player: None,
             is_admin: false,
             created_at: now,
             last_login: now,
             play_time_seconds: 0,
             deaths: 0,
             kills: 0,
-            authored_books: vec![],
             quest_flags: HashMap::new(),
             known_recipes: vec![],
         }
@@ -551,15 +537,6 @@ impl Player {
         })
     }
 
-    #[allow(dead_code)]
-    pub fn find_item_mut(&mut self, keyword: &str) -> Option<&mut ItemInstance> {
-        let kw = keyword.to_lowercase();
-        self.inventory.iter_mut().find(|i| {
-            i.name.to_lowercase().contains(&kw) ||
-            i.template_id.to_lowercase().contains(&kw)
-        })
-    }
-
     pub fn take_item(&mut self, keyword: &str) -> Option<ItemInstance> {
         let kw = keyword.to_lowercase();
         let pos = self.inventory.iter().position(|i| {
@@ -589,7 +566,7 @@ impl Player {
     }
 
     pub fn is_in_combat(&self) -> bool {
-        self.in_combat_with.is_some() || self.in_combat_with_player.is_some()
+        self.in_combat_with.is_some()
     }
 
     pub fn save(&self, path: &str) -> anyhow::Result<()> {
