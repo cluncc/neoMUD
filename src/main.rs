@@ -38,8 +38,6 @@ async fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let config = Config::load(&args.config)?;
 
-    info!("Starting neoMUD on port {}", config.server.port);
-
     // Build player save directory
     std::fs::create_dir_all(&config.game.players_path)?;
 
