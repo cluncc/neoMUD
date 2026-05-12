@@ -193,6 +193,11 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                     dispatch(&handle, &pn, &line).await;
                                     // Check if player quit
                                     if !handle.sessions.contains_key(&pn) {
+                                        // Flush pending messages (e.g. quit farewell)
+                                        while let Ok(msg) = rx.try_recv() {
+                                            let _ = writer.write_all(msg.as_bytes()).await;
+                                        }
+                                        let _ = writer.flush().await;
                                         break;
                                     }
                                 }

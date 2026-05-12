@@ -215,8 +215,9 @@ async fn run_ssh_session(
 ) {
     info!("SSH session started from {}", peer);
 
-    // MOTD
-    ssh_send(&ssh, channel, &format!("{}\r\n", bright_cyan(&handle.config.server.motd))).await;
+    // MOTD — normalise bare \n to \r\n for SSH terminals
+    let motd = handle.config.server.motd.replace('\n', "\r\n");
+    ssh_send(&ssh, channel, &format!("{}\r\n", bright_cyan(&motd))).await;
 
     // If the SSH username looks like a valid player name, use it as the initial name,
     // skipping the "What is your name?" prompt.
@@ -254,6 +255,7 @@ async fn run_ssh_session(
                         for &b in &data {
                             if b == b'\r' || b == b'\n' {
                                 if buf.is_empty() { continue; }
+                                ssh_send(&ssh, channel, "\r\n").await;
                                 let line = String::from_utf8_lossy(&buf).into_owned();
                                 buf.clear();
                                 if line.len() > MAX_INPUT_LEN { continue; }
@@ -264,13 +266,18 @@ async fn run_ssh_session(
                                 ).await;
 
                                 if matches!(phase, SessionPhase::Playing(_)) && !done {
-                                    ssh_send(&ssh, channel, "\r\n> ").await;
+                                    ssh_send(&ssh, channel, "> ").await;
                                 }
                                 if done { break; }
                             } else if b == 8 || b == 127 {
-                                buf.pop();
+                                if buf.pop().is_some() && !matches!(phase, SessionPhase::AwaitingPassword(_)) {
+                                    ssh_send(&ssh, channel, "\x08 \x08").await;
+                                }
                             } else if b.is_ascii() && !b.is_ascii_control() {
                                 buf.push(b);
+                                if !matches!(phase, SessionPhase::AwaitingPassword(_)) {
+                                    ssh_send(&ssh, channel, &(b as char).to_string()).await;
+                                }
                             }
                         }
                     }
@@ -281,6 +288,11 @@ async fn run_ssh_session(
                 ssh_send(&ssh, channel, &format!("\r{}\r\n> ", msg)).await;
             }
         }
+    }
+
+    // Flush any pending game messages (e.g. quit farewell) before closing
+    while let Ok(msg) = game_rx.try_recv() {
+        ssh_send(&ssh, channel, &format!("\r{}\r\n", msg)).await;
     }
 
     // Cleanup
