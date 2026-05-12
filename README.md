@@ -137,7 +137,7 @@ fn on_enter(ctx) {
 
 ## Authors
 
-[ytcracker](https://github.com/realytcracker) and [clord](https://github.com/clord)
+[ytcracker](https://github.com/realytcracker) and clord
 
 ## License
 
