@@ -356,7 +356,7 @@ async fn cmd_examine(handle: &GameHandle, player_name: &str, target: &str) {
     // Check NPCs in room
     for npc_id in &room.npcs {
         if let Some(npc) = state.npcs.get(npc_id) {
-            if npc.name.to_lowercase().contains(&kw) {
+            if npc_matches(npc, &state.world, &kw) {
                 let tmpl = state.world.get_npc_template(&npc.template_id);
                 let long = tmpl.map(|t| t.long_desc.as_str()).unwrap_or("Nothing special about them.");
                 let mem_sentiment = npc.memory_of(player_name).map(|m| m.sentiment).unwrap_or(0);
@@ -1143,7 +1143,7 @@ async fn cmd_attack(handle: &GameHandle, player_name: &str, target: &str) {
     // Find NPC in room
     let npc_id = room.npcs.iter()
         .find(|id| state.npcs.get(*id)
-            .map(|n| n.alive && n.name.to_lowercase().contains(&kw))
+            .map(|n| n.alive && npc_matches(n, &state.world, &kw))
             .unwrap_or(false))
         .cloned();
 
@@ -1224,7 +1224,7 @@ async fn cmd_consider(handle: &GameHandle, player_name: &str, target: &str) {
     let room = match state.world.get_room(&player.room) { Some(r) => r, None => return };
     let kw = target.to_lowercase();
     let npc = room.npcs.iter()
-        .find_map(|id| state.npcs.get(id).filter(|n| n.name.to_lowercase().contains(&kw)));
+        .find_map(|id| state.npcs.get(id).filter(|n| npc_matches(n, &state.world, &kw)));
     match npc {
         None => { state.tell_player(player_name, &error_msg("You don't see that here."), &handle.sessions).await; }
         Some(npc) => {
@@ -1639,6 +1639,20 @@ async fn cmd_admin_set(handle: &GameHandle, player_name: &str, args: &str) {
 
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
+
+/// Returns true if `kw` matches the NPC's name OR any of its template keywords.
+fn npc_matches(
+    npc: &crate::entity::ActiveNpc,
+    world: &crate::world::World,
+    kw: &str,
+) -> bool {
+    if npc.name.to_lowercase().contains(kw) {
+        return true;
+    }
+    world.get_npc_template(&npc.template_id)
+        .map(|t| t.keywords.iter().any(|k| k.to_lowercase().contains(kw)))
+        .unwrap_or(false)
+}
 
 fn find_player_name<'a>(
     players: &'a std::collections::HashMap<String, Player>,
