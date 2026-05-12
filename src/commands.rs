@@ -95,6 +95,9 @@ pub async fn dispatch(handle: &GameHandle, player_name: &str, input: &str) {
         "craft" | "combine" => cmd_craft(handle, player_name, args).await,
 
         // ── Combat ───────────────────────────────────────────────────────────
+        "talk" | "greet" => cmd_talk(handle, player_name, args).await,
+
+        // ── Combat ───────────────────────────────────────────────────────────
         "k" | "kill" | "attack" | "hit" => cmd_attack(handle, player_name, args).await,
         "flee"              => cmd_flee(handle, player_name).await,
         "consider" | "con"  => cmd_consider(handle, player_name, args).await,
@@ -1114,6 +1117,121 @@ async fn cmd_craft(handle: &GameHandle, player_name: &str, args: &str) {
     state.tell_player(player_name, &info_msg("Crafting: combine items by typing 'craft <item1> with <item2>'. Some combinations reveal new recipes!"), &handle.sessions).await;
 }
 
+// ─── Talk / Dialogue ──────────────────────────────────────────────────────────
+
+async fn cmd_talk(handle: &GameHandle, player_name: &str, args: &str) {
+    let args = args.trim();
+    if args.is_empty() {
+        handle.state.read().await.tell_player(
+            player_name,
+            &error_msg("Talk to whom? (talk <npc> [topic])"),
+            &handle.sessions,
+        ).await;
+        return;
+    }
+
+    // Split "herald hello" → npc_kw="herald", topic="hello"
+    // or "herald" → npc_kw="herald", topic=""
+    let (npc_kw, topic) = parse_input(args);
+    let npc_kw = npc_kw.to_lowercase();
+    let topic  = topic.to_lowercase();
+
+    let state = handle.state.read().await;
+    let player = match state.players.get(player_name) { Some(p) => p, None => return };
+    let room   = match state.world.get_room(&player.room)  { Some(r) => r, None => return };
+
+    // Find matching NPC in current room
+    let npc = room.npcs.iter()
+        .find_map(|id| state.npcs.get(id).filter(|n| n.alive && npc_matches(n, &state.world, &npc_kw)));
+
+    let npc = match npc {
+        Some(n) => n,
+        None => {
+            state.tell_player(player_name, &error_msg("You don't see that here."), &handle.sessions).await;
+            return;
+        }
+    };
+
+    let tmpl = match state.world.get_npc_template(&npc.template_id) {
+        Some(t) => t,
+        None => return,
+    };
+
+    if tmpl.dialogue.is_empty() {
+        state.tell_player(
+            player_name,
+            &info_msg(&format!("{} doesn't seem interested in conversation.", npc.name)),
+            &handle.sessions,
+        ).await;
+        return;
+    }
+
+    if topic.is_empty() {
+        // No topic: show the "hello" response if one exists, then list available topics.
+        let greeting = tmpl.dialogue.iter().find(|d| d.trigger == "hello");
+        if let Some(g) = greeting {
+            let msg = format!(
+                "\r\n{} says: \"{}\"\r\n",
+                cyan(&npc.name), white(&g.response)
+            );
+            state.tell_player(player_name, &msg, &handle.sessions).await;
+        }
+        let topics: Vec<&str> = tmpl.dialogue.iter().map(|d| d.trigger.as_str()).collect();
+        state.tell_player(
+            player_name,
+            &dim(&format!("(You can ask about: {})", topics.join(", "))),
+            &handle.sessions,
+        ).await;
+        return;
+    }
+
+    // Match dialogue by trigger substring
+    let line = tmpl.dialogue.iter().find(|d| d.trigger.to_lowercase().contains(&topic));
+    match line {
+        None => {
+            state.tell_player(
+                player_name,
+                &info_msg(&format!("{} doesn't have anything to say about that.", npc.name)),
+                &handle.sessions,
+            ).await;
+        }
+        Some(line) => {
+            let msg = format!(
+                "\r\n{} says: \"{}\"\r\n",
+                cyan(&npc.name), white(&line.response)
+            );
+            state.tell_player(player_name, &msg, &handle.sessions).await;
+            state.tell_room_except(&player.room, player_name,
+                &dim(&format!("{} talks with {}.", player_name, npc.name)),
+                &handle.sessions).await;
+
+            // Fire optional script hook attached to this dialogue line
+            let hook = line.script_hook.clone();
+            let script_name = tmpl.script.clone();
+            drop(state);
+            if let (Some(hook_name), Some(script)) = (hook, script_name) {
+                let room_id = {
+                    let s = handle.state.read().await;
+                    s.players.get(player_name).map(|p| p.room.clone()).unwrap_or_default()
+                };
+                let ctx = rhai::Dynamic::from({
+                    let mut m = rhai::Map::new();
+                    m.insert("player".into(), rhai::Dynamic::from(player_name.to_string()));
+                    m.insert("npc".into(), rhai::Dynamic::from(npc_kw.clone()));
+                    m.insert("topic".into(), rhai::Dynamic::from(topic.clone()));
+                    m.insert("room".into(), rhai::Dynamic::from(room_id.clone()));
+                    m
+                });
+                let actions = handle.scripts.call_hook(&script, &hook_name, ctx);
+                if !actions.is_empty() {
+                    let mut s = handle.state.write().await;
+                    s.apply_script_actions(actions, player_name, &room_id, &handle.sessions).await;
+                }
+            }
+        }
+    }
+}
+
 // ─── Combat ───────────────────────────────────────────────────────────────────
 
 async fn cmd_attack(handle: &GameHandle, player_name: &str, target: &str) {
@@ -1393,6 +1511,7 @@ Items:       get <item>  drop <item>  wear/wield <item>  remove <item>\r\n\
              use <item>  give <item> to <player>  buy/sell/list\r\n\
 Chat:        say <msg>  tell <player> <msg>  shout <msg>  emote <action>\r\n\
              chat <msg> (OOC)  whisper <player> <msg>\r\n\
+NPC:         talk <npc> [topic]  (talk without a topic lists available topics)\r\n\
 Character:   title <text>  describe <text>  alias  save  quit\r\n\
 \r\nType 'help <topic>' for more: combat, skills, crafting, factions, time\r\n";
 
