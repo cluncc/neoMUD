@@ -56,15 +56,23 @@ async fn main() -> anyhow::Result<()> {
         }
     });
 
-    // SSH server (runs alongside telnet)
-    let ssh_handle = handle.clone();
-    tokio::spawn(async move {
-        if let Err(e) = ssh::run_ssh_server(ssh_handle).await {
-            tracing::error!("SSH server error: {}", e);
-        }
-    });
+    if handle.config.server.ssh_enabled {
+        let ssh_handle = handle.clone();
+        tokio::spawn(async move {
+            if let Err(e) = ssh::run_ssh_server(ssh_handle).await {
+                tracing::error!("SSH server error: {}", e);
+            }
+        });
+    } else {
+        info!("SSH disabled");
+    }
 
-    server::run(handle).await?;
+    if handle.config.server.telnet_enabled {
+        server::run(handle).await?;
+    } else {
+        info!("Telnet disabled");
+        std::future::pending::<()>().await;
+    }
     Ok(())
 }
 

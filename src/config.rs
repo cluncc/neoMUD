@@ -19,10 +19,15 @@ pub struct ServerConfig {
     pub ssh_port: u16,
     #[serde(default = "default_ssh_host_key_path")]
     pub ssh_host_key_path: String,
+    #[serde(default = "default_true")]
+    pub telnet_enabled: bool,
+    #[serde(default = "default_true")]
+    pub ssh_enabled: bool,
 }
 
 fn default_ssh_port() -> u16 { 2222 }
 fn default_ssh_host_key_path() -> String { "data/ssh_host_key".into() }
+fn default_true() -> bool { true }
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct GameConfig {
