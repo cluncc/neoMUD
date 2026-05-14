@@ -1753,14 +1753,19 @@ const HELP_COMMANDS: &str = "\
 \x1b[1mNeoMUD Command Reference\x1b[0m\r\n\
 \x1b[2m────────────────────────────────────────────────────────────\x1b[0m\r\n\
 Navigation:  n/s/e/w/u/d  ne/nw/se/sw  look  map\r\n\
-Information: score  inventory(i)  equipment(eq)  skills  who  time  weather  rep\r\n\
+Information: examine <target>  score  inventory(i)  equipment(eq)  skills\r\n\
+             who  time  weather  rep  help [topic]\r\n\
 Combat:      kill <target>  flee  consider <target>\r\n\
-Items:       get <item>  drop <item>  wear/wield <item>  remove <item>\r\n\
-             use <item>  give <item> to <player>  buy/sell/list\r\n\
-Chat:        say <msg>  tell <player> <msg>  shout <msg>  emote <action>\r\n\
-             chat <msg> (OOC)  whisper <player> <msg>\r\n\
+Items:       get <item>  drop <item>  put <item> in <container>\r\n\
+             wear/wield <item>  remove <item>  use <item>\r\n\
+             give <item> to <player>  buy/sell/list  craft <item> with <item>\r\n\
+Chat:        say <msg>  tell <player> <msg>  reply <msg>  shout <msg>\r\n\
+             emote <action>  chat <msg> (OOC)  whisper <player> <msg>\r\n\
 NPC:         talk <npc> [topic]  (talk without a topic lists available topics)\r\n\
-Character:   title <text>  describe <text>  alias  save  quit\r\n\
+Character:   title <text>  describe <text>  alias  unalias\r\n\
+             write <text>  read <item>  save  quit\r\n\
+Admin:       goto <room>  teleport <player> <room>  spawn <npc>\r\n\
+             info <target>  reload  set  shutdown  (admin only)\r\n\
 \r\nType 'help <topic>' for more: combat, skills, crafting, factions, time\r\n";
 
 const HELP_COMBAT: &str = "\
