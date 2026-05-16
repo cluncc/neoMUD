@@ -1752,19 +1752,21 @@ async fn cmd_help(handle: &GameHandle, player_name: &str, topic: &str) {
 const HELP_COMMANDS: &str = "\
 \x1b[1mNeoMUD Command Reference\x1b[0m\r\n\
 \x1b[2m────────────────────────────────────────────────────────────\x1b[0m\r\n\
-Navigation:  n/s/e/w/u/d  ne/nw/se/sw  look  map\r\n\
-Information: examine <target>  score  inventory(i)  equipment(eq)  skills\r\n\
-             who  time  weather  rep  help [topic]\r\n\
-Combat:      kill <target>  flee  consider <target>\r\n\
-Items:       get <item>  drop <item>  put <item> in <container>\r\n\
+Navigation:  n s e w u d  ne nw se sw  look(l)  map\r\n\
+Information: examine(ex/x) <target>  score(sc/stats)  inventory(i)\r\n\
+             equipment(eq)  skills(sk)  who  time  weather  rep  help [topic]\r\n\
+Combat:      kill(k/attack/hit) <target>  flee  consider(con) <target>\r\n\
+Items:       get(take) <item>  drop <item>  put <item> in <container>\r\n\
              wear/wield <item>  remove <item>  use <item>\r\n\
-             give <item> to <player>  buy/sell/list  craft <item> with <item>\r\n\
-Chat:        say <msg>  tell <player> <msg>  reply <msg>  shout <msg>\r\n\
-             emote <action>  chat <msg> (OOC)  whisper <player> <msg>\r\n\
-NPC:         talk <npc> [topic]  (talk without a topic lists available topics)\r\n\
-Character:   title <text>  describe <text>  alias  unalias\r\n\
-             write <text>  read <item>  save  quit\r\n\
-Admin:       goto <room>  teleport <player> <room>  spawn <npc>\r\n\
+             give <item> to <player>  buy <item>  sell <item>  list\r\n\
+             craft(combine) <item> with <item>  craft list\r\n\
+Chat:        say(') <msg>  tell(t) <player> <msg>  reply(r) <msg>\r\n\
+             shout(yell) <msg>  emote(:) <action>  whisper <player> <msg>\r\n\
+             chat(ooc) <msg>\r\n\
+NPC:         talk(greet) <npc> [topic]  (omit topic to list available topics)\r\n\
+Character:   title <text>  describe <text>  alias [name expansion]  unalias <name>\r\n\
+             write <item> <text>  read <item>  save  quit(q)\r\n\
+Admin:       goto <room>  teleport(tp) <player> <room>  spawn <npc>\r\n\
              info <target>  reload  set  shutdown  (admin only)\r\n\
 \r\nType 'help <topic>' for more: combat, skills, crafting, factions, time\r\n";
 
