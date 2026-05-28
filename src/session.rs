@@ -17,9 +17,12 @@ use crate::state::GameHandle;
 const INPUT_TIMEOUT_SECS: u64 = 300; // 5-minute idle disconnect
 const MAX_INPUT_LEN: usize = 512;
 const TELNET_IAC: u8 = 255;
+const TELNET_SB: u8 = 250;
+const TELNET_SE: u8 = 240;
 const TELNET_WILL: u8 = 251;
 const TELNET_WONT: u8 = 252;
 const TELNET_DO: u8 = 253;
+const TELNET_DONT: u8 = 254;
 const TELNET_ECHO: u8 = 1;
 const TELNET_NAWS: u8 = 31;
 
@@ -249,14 +252,48 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
 }
 
 /// Returns Some(line) when a complete line is ready, stripping telnet IAC sequences.
+///
+/// Handles the four IAC forms a client may send:
+///   IAC IAC           — escaped 0xFF data byte (currently dropped, since we
+///                       only accept printable ASCII anyway)
+///   IAC <2-byte cmd>  — single-byte commands like NOP (241), AYT (246)
+///   IAC WILL|WONT|DO|DONT <option>  — 3-byte option negotiation
+///   IAC SB <option> ... IAC SE      — subnegotiation, variable length
 fn process_telnet_input(chunk: &[u8], buf: &mut Vec<u8>) -> Option<String> {
     let mut i = 0;
     while i < chunk.len() {
         let b = chunk[i];
         if b == TELNET_IAC {
-            // Skip IAC + command byte + option byte; clamp so split sequences
-            // at the end of a chunk don't cause the index to wrap or skip data.
-            i = (i + 3).min(chunk.len());
+            // Need at least one byte after IAC to know the command.
+            if i + 1 >= chunk.len() { break; }
+            let cmd = chunk[i + 1];
+            match cmd {
+                TELNET_IAC => {
+                    // Escaped 0xFF — would be a data byte. We strip it since
+                    // we only buffer printable ASCII below.
+                    i += 2;
+                }
+                TELNET_WILL | TELNET_WONT | TELNET_DO | TELNET_DONT => {
+                    // 3-byte option negotiation: IAC <cmd> <option>
+                    i = (i + 3).min(chunk.len());
+                }
+                TELNET_SB => {
+                    // Subnegotiation: skip until IAC SE.
+                    let mut j = i + 2;
+                    while j + 1 < chunk.len() {
+                        if chunk[j] == TELNET_IAC && chunk[j + 1] == TELNET_SE {
+                            j += 2;
+                            break;
+                        }
+                        j += 1;
+                    }
+                    i = j.min(chunk.len());
+                }
+                _ => {
+                    // 2-byte single command (NOP, AYT, IP, BREAK, etc.)
+                    i += 2;
+                }
+            }
             continue;
         }
         if b == b'\r' || b == b'\n' {
