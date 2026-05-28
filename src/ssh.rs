@@ -36,7 +36,17 @@ pub fn load_or_generate_host_key(path: &str) -> anyhow::Result<russh_keys::key::
         }
         let kp = russh_keys::key::KeyPair::generate_ed25519()
             .ok_or_else(|| anyhow::anyhow!("Ed25519 key generation failed"))?;
-        let mut file = std::fs::File::create(p)?;
+        // Create the host key file with 0600 perms (owner read/write only) so
+        // that the private key isn't world-readable. On non-Unix platforms we
+        // fall back to the default umask.
+        let mut opts = std::fs::OpenOptions::new();
+        opts.write(true).create_new(true);
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::OpenOptionsExt;
+            opts.mode(0o600);
+        }
+        let mut file = opts.open(p)?;
         russh_keys::encode_pkcs8_pem(&kp, &mut file)
             .map_err(|e| anyhow::anyhow!("Host key save failed: {}", e))?;
         info!("Generated SSH host key at {}", path);
