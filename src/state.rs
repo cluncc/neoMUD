@@ -378,19 +378,28 @@ impl GameState {
                 }
                 "heal_player" => {
                     let target = action.params.get("player").and_then(|v| v.as_str()).unwrap_or(player_name);
-                    let amount = action.params.get("amount").and_then(|v| v.as_i64()).unwrap_or(10).max(0) as i32;
+                    // Clamp to i32 range BEFORE casting; raw `as i32` truncates and a
+                    // script-supplied amount of i64::MAX would wrap to -1, turning a
+                    // heal into damage.
+                    let amount = action.params.get("amount").and_then(|v| v.as_i64()).unwrap_or(10)
+                        .clamp(0, i32::MAX as i64) as i32;
                     if let Some(player) = self.players.get_mut(target) {
-                        let healed = amount.min(player.stats.max_hp - player.stats.hp);
-                        player.stats.hp += healed;
+                        let headroom = (player.stats.max_hp - player.stats.hp).max(0);
+                        let healed = amount.min(headroom);
+                        player.stats.hp = player.stats.hp.saturating_add(healed);
                         let msg = crate::color::heal_text(&format!("You are healed for {} HP!", healed));
                         self.tell_player(target, &msg, sessions).await;
                     }
                 }
                 "damage_player" => {
                     let target = action.params.get("player").and_then(|v| v.as_str()).unwrap_or(player_name);
-                    let amount = action.params.get("amount").and_then(|v| v.as_i64()).unwrap_or(0).max(0) as i32;
+                    // Clamp to i32 range BEFORE casting; raw `as i32` truncates and a
+                    // script-supplied amount of i64::MAX would wrap to a negative
+                    // value, healing the player instead of damaging them.
+                    let amount = action.params.get("amount").and_then(|v| v.as_i64()).unwrap_or(0)
+                        .clamp(0, i32::MAX as i64) as i32;
                     if let Some(player) = self.players.get_mut(target) {
-                        player.stats.hp -= amount;
+                        player.stats.hp = player.stats.hp.saturating_sub(amount);
                         let msg = crate::color::damage_in(&format!("You take {} damage!", amount));
                         self.tell_player(target, &msg, sessions).await;
                     }
