@@ -274,9 +274,11 @@ async fn run_ssh_session(
                                     ssh_send(&ssh, channel, "\x08 \x08").await;
                                 }
                             } else if b.is_ascii() && !b.is_ascii_control() {
-                                buf.push(b);
-                                if !matches!(phase, SessionPhase::AwaitingPassword(_)) {
-                                    ssh_send(&ssh, channel, &(b as char).to_string()).await;
+                                if buf.len() < MAX_INPUT_LEN {
+                                    buf.push(b);
+                                    if !matches!(phase, SessionPhase::AwaitingPassword(_)) {
+                                        ssh_send(&ssh, channel, &(b as char).to_string()).await;
+                                    }
                                 }
                             }
                         }

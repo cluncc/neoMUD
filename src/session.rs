@@ -269,7 +269,9 @@ fn process_telnet_input(chunk: &[u8], buf: &mut Vec<u8>) -> Option<String> {
         if b == 8 || b == 127 {
             buf.pop();
         } else if b.is_ascii() && !b.is_ascii_control() {
-            buf.push(b);
+            if buf.len() < MAX_INPUT_LEN {
+                buf.push(b);
+            }
         }
         i += 1;
     }

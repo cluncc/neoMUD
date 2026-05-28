@@ -737,6 +737,10 @@ async fn cmd_chat(handle: &GameHandle, player_name: &str, msg: &str) {
 
 async fn cmd_whisper(handle: &GameHandle, player_name: &str, args: &str) {
     let (target, msg) = parse_input(args);
+    if msg.len() > MAX_MSG_LEN {
+        handle.state.read().await.tell_player(player_name, &error_msg("Message too long (max 200 characters)."), &handle.sessions).await;
+        return;
+    }
     let state = handle.state.read().await;
     let player = match state.players.get(player_name) { Some(p) => p.clone(), None => return };
 
