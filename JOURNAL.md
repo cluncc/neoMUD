@@ -353,3 +353,67 @@ Player saves are JSON files in `data/players/`. They can be backed up with any s
 - **Single-process**: The game state is in-process memory. Horizontal scaling would require extracting state to an external store (Redis, etc.).
 - **No account system**: Each character name is a separate identity. Alts are trivially created.
 - **No rate limiting** on new character creation or failed logins beyond the 1-second SSH rejection delay.
+
+---
+
+## 2026-05-28 — cleanup pass
+
+Another sweep through the tree to drop code that nothing calls and tidy a few
+lints. Every removal was verified with `cargo check`, `cargo build
+--all-targets`, `cargo clippy --all-targets`, and `cargo test` (86 tests, all
+green).
+
+### Removed (dead — no call sites in src/, tests/, or `world/scripts/`)
+
+- `src/error.rs` — empty placeholder file. The module declaration was removed
+  in a previous pass but the file remained on disk; deleted.
+- `GameState::npcs_in_room` (state.rs) — `#[allow(dead_code)]` helper with no
+  callers. NPC-in-room lookups are done inline by the few sites that need them.
+- `TimeOfDay::ambient_light`, `Weather::affects_visibility`,
+  `Weather::combat_modifier`, `GameTime::is_daytime` (time.rs) — speculative
+  hooks for visibility and weather-aware combat that were never wired up.
+- `Stats::hp_percent`, `Stats::condition_string` (entity.rs) — health-string
+  helpers that no command, script action, or render path used.
+- `Skill::use_skill`, `Skill::effectiveness` (entity.rs) — leveling/scaling
+  hooks. Real skill progression is driven by `Player::known_skills` plumbing in
+  `commands.rs`; these methods were orphaned.
+- `Equipment::armor_bonus` (entity.rs) — placeholder armor formula; combat uses
+  `Stats::armor_class` directly.
+- `ActiveNpc::update_memory` (entity.rs) — NPC memory write helper. Memory is
+  read in dialogue (`memory_of`) but never written; the script-driven flag
+  system handles persistent NPC state.
+
+### Stale lint allow
+
+- `parse_area_file_str` (world.rs) had `#[allow(dead_code)]` but is used by
+  `tests/integration.rs` (via the lib crate) and by the binary's `#[cfg(test)]`
+  loader. Replaced the bare allow with a comment explaining why the binary's
+  non-test build still flags it.
+
+### Small refactors
+
+- Module-level `///` doc blocks followed by a blank line in `lib.rs`,
+  `color.rs`, `scripting.rs`, `session.rs`, `ssh.rs`, and `tests/integration.rs`
+  converted to `//!` inner doc comments (silences the
+  `empty_line_after_doc_comments` lint and is actually what the docs were
+  trying to be).
+- `session.rs` and `ssh.rs`: replaced two manual `name_tag[4..]` slices after
+  `starts_with("new:")` with `strip_prefix("new:")`, removing the implicit
+  panic surface if the prefix shape ever changes.
+- `GameState::announce_weather_change`: two `for (_, x) in &map` loops
+  rewritten as `map.values()` since the keys were unused.
+
+### Left alone (deliberately)
+
+- `ServerConfig::max_players` — never read in code but is part of the public
+  `config.toml` schema. Removing it would silently break user configs. Kept
+  with its `#[allow(dead_code)]` until a real enforcement path lands.
+- The remaining clippy warnings (`manual_is_multiple_of`, `type_complexity` on
+  the three `parse_area_file_*` returns, `sort_by_key` suggestions in
+  `commands.rs`, the `clamp`-pattern in `cmd_set`, a collapsible match in
+  `state.rs`) are stylistic and would either churn signatures across the
+  call-graph or hurt local readability. Not worth touching in a cleanup pass.
+- The color palette in `color.rs` keeps `magenta` and `bright_magenta` even
+  though only the semantic aliases (`tell_text`, `shout_text`) reference them
+  today — the public palette is intentional API surface.
+

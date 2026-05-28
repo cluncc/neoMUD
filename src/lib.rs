@@ -1,5 +1,5 @@
-/// Library crate root — exposes internal modules for integration testing.
-/// Not part of the binary surface; only used by tests/.
+//! Library crate root — exposes internal modules for integration testing.
+//! Not part of the binary surface; only used by tests/.
 
 pub mod color;
 pub mod commands;

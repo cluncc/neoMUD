@@ -1,7 +1,7 @@
-/// Integration tests for neoMUD.
-///
-/// These tests verify observable behaviour at the module boundary — they use
-/// only the public API and avoid reaching into internal implementation details.
+//! Integration tests for neoMUD.
+//!
+//! These tests verify observable behaviour at the module boundary — they use
+//! only the public API and avoid reaching into internal implementation details.
 
 // ─── Command parsing ──────────────────────────────────────────────────────────
 

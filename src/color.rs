@@ -1,5 +1,5 @@
-/// ANSI color wrappers for MUD output.
-/// All color functions return owned Strings with embedded escape codes.
+//! ANSI color wrappers for MUD output.
+//! All color functions return owned Strings with embedded escape codes.
 
 pub fn bold(s: &str) -> String { format!("\x1b[1m{}\x1b[0m", s) }
 pub fn dim(s: &str) -> String { format!("\x1b[2m{}\x1b[0m", s) }

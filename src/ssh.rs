@@ -1,7 +1,7 @@
-/// SSH transport layer — accepts SSH connections and runs the same MUD session
-/// state machine as the telnet path.  Players connect with:
-///   ssh -p 2222 <username>@host
-/// The SSH username is used as a name hint; MUD authentication still applies.
+//! SSH transport layer — accepts SSH connections and runs the same MUD session
+//! state machine as the telnet path.  Players connect with:
+//!   ssh -p 2222 <username>@host
+//! The SSH username is used as a name hint; MUD authentication still applies.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -357,8 +357,8 @@ async fn handle_line(
         }
 
         SessionPhase::AwaitingPassword(name_tag) => {
-            if name_tag.starts_with("new:") {
-                let name = name_tag[4..].to_string();
+            if let Some(name) = name_tag.strip_prefix("new:") {
+                let name = name.to_string();
                 let hash = hash_password(line);
                 ssh_send(ssh, channel, &build_race_menu()).await;
                 *phase = SessionPhase::NewCharRace(name, hash);

@@ -63,25 +63,6 @@ impl Stats {
     }
 
     pub fn is_alive(&self) -> bool { self.hp > 0 }
-
-    #[allow(dead_code)]
-    pub fn hp_percent(&self) -> u32 {
-        if self.max_hp == 0 { return 0; }
-        ((self.hp as f32 / self.max_hp as f32) * 100.0) as u32
-    }
-
-    #[allow(dead_code)]
-    pub fn condition_string(&self) -> &'static str {
-        match self.hp_percent() {
-            91..=100 => "is in perfect health",
-            76..=90 => "has a few scratches",
-            51..=75 => "has some wounds",
-            26..=50 => "is badly wounded",
-            11..=25 => "is in critical condition",
-            1..=10 => "is near death",
-            _ => "is dead",
-        }
-    }
 }
 
 // ─── Race ────────────────────────────────────────────────────────────────────
@@ -236,31 +217,6 @@ impl Skill {
     pub fn new(name: &str) -> Self {
         Skill { name: name.to_string(), level: 1, uses: 0, mastery: SkillMastery::Novice }
     }
-
-    /// Use the skill; may level up. Returns true if level increased.
-    #[allow(dead_code)]
-    pub fn use_skill(&mut self) -> bool {
-        self.uses += 1;
-        let threshold = (self.level as u64 * self.level as u64) * 10 + 100;
-        if self.uses % threshold == 0 && self.level < 100 {
-            self.level += 1;
-            self.mastery = match self.level {
-                1..=15 => SkillMastery::Novice,
-                16..=30 => SkillMastery::Apprentice,
-                31..=50 => SkillMastery::Journeyman,
-                51..=70 => SkillMastery::Expert,
-                71..=90 => SkillMastery::Master,
-                _ => SkillMastery::Grandmaster,
-            };
-            return true;
-        }
-        false
-    }
-
-    #[allow(dead_code)]
-    pub fn effectiveness(&self) -> f32 {
-        self.level as f32 / 100.0
-    }
 }
 
 // ─── Item Instance ───────────────────────────────────────────────────────────
@@ -309,11 +265,6 @@ impl Equipment {
 
     pub fn unequip(&mut self, slot: &str) -> Option<ItemInstance> {
         self.slots.remove(slot)
-    }
-
-    #[allow(dead_code)]
-    pub fn armor_bonus(&self) -> i32 {
-        self.slots.len() as i32 * 2
     }
 }
 
@@ -408,27 +359,6 @@ pub struct ActiveNpc {
 impl ActiveNpc {
     pub fn memory_of(&self, player: &str) -> Option<&NpcMemory> {
         self.memory.iter().find(|m| m.player_name == player)
-    }
-
-    #[allow(dead_code)]
-    pub fn update_memory(&mut self, player: &str, sentiment_delta: i32, note: Option<String>) {
-        let now = chrono::Utc::now().timestamp();
-        if let Some(mem) = self.memory.iter_mut().find(|m| m.player_name == player) {
-            mem.last_interaction = now;
-            mem.interaction_count += 1;
-            mem.sentiment = (mem.sentiment + sentiment_delta).clamp(-100, 100);
-            if let Some(n) = note { mem.notes.push(n); if mem.notes.len() > 5 { mem.notes.remove(0); } }
-        } else {
-            let mut notes = vec![];
-            if let Some(n) = note { notes.push(n); }
-            self.memory.push(NpcMemory {
-                player_name: player.to_string(),
-                last_interaction: now,
-                interaction_count: 1,
-                sentiment: sentiment_delta.clamp(-100, 100),
-                notes,
-            });
-        }
     }
 }
 

@@ -1,32 +1,32 @@
-/// Rhai scripting engine — every room, NPC, and item can have a script.
-///
-/// Scripts are hot-reloadable .rhai files. They expose lifecycle hooks:
-///   fn on_enter(ctx)      → Array of actions (or [])
-///   fn on_exit(ctx)       → Array of actions
-///   fn on_command(ctx)    → Array of actions  (intercept unknown cmds)
-///   fn on_say(ctx)        → Array of actions
-///   fn on_tick(ctx)       → Array of actions  (called each game tick)
-///   fn on_attack(ctx)     → Array of actions
-///   fn on_die(ctx)        → Array of actions
-///   fn on_use(ctx)        → Array of actions  (items)
-///   fn on_pickup(ctx)     → Array of actions  (items)
-///   fn describe(ctx)      → String (override description)
-///
-/// Actions returned by scripts:
-///   #{ action: "tell_player", player: "name", msg: "..." }
-///   #{ action: "tell_room", room: "id", msg: "..." }
-///   #{ action: "tell_area", area: "id", msg: "..." }
-///   #{ action: "move_player", player: "name", to: "room_id" }
-///   #{ action: "move_npc", npc: "id", to: "room_id" }
-///   #{ action: "spawn_npc", template: "id", room: "room_id" }
-///   #{ action: "spawn_item", template: "id", room: "room_id" }
-///   #{ action: "give_item", player: "name", template: "template_id" }
-///   #{ action: "heal_player", player: "name", amount: 10 }
-///   #{ action: "damage_player", player: "name", amount: 10 }
-///   #{ action: "set_flag", target: "player/npc/room", id: "...", flag: "...", value: true }
-///   #{ action: "record_history", room: "id", event: "..." }
-///   #{ action: "grant_skill", player: "name", skill: "..." }
-///   #{ action: "adjust_rep", player: "name", faction: "...", amount: 5 }
+//! Rhai scripting engine — every room, NPC, and item can have a script.
+//!
+//! Scripts are hot-reloadable .rhai files. They expose lifecycle hooks:
+//!   fn on_enter(ctx)      → Array of actions (or [])
+//!   fn on_exit(ctx)       → Array of actions
+//!   fn on_command(ctx)    → Array of actions  (intercept unknown cmds)
+//!   fn on_say(ctx)        → Array of actions
+//!   fn on_tick(ctx)       → Array of actions  (called each game tick)
+//!   fn on_attack(ctx)     → Array of actions
+//!   fn on_die(ctx)        → Array of actions
+//!   fn on_use(ctx)        → Array of actions  (items)
+//!   fn on_pickup(ctx)     → Array of actions  (items)
+//!   fn describe(ctx)      → String (override description)
+//!
+//! Actions returned by scripts:
+//!   #{ action: "tell_player", player: "name", msg: "..." }
+//!   #{ action: "tell_room", room: "id", msg: "..." }
+//!   #{ action: "tell_area", area: "id", msg: "..." }
+//!   #{ action: "move_player", player: "name", to: "room_id" }
+//!   #{ action: "move_npc", npc: "id", to: "room_id" }
+//!   #{ action: "spawn_npc", template: "id", room: "room_id" }
+//!   #{ action: "spawn_item", template: "id", room: "room_id" }
+//!   #{ action: "give_item", player: "name", template: "template_id" }
+//!   #{ action: "heal_player", player: "name", amount: 10 }
+//!   #{ action: "damage_player", player: "name", amount: 10 }
+//!   #{ action: "set_flag", target: "player/npc/room", id: "...", flag: "...", value: true }
+//!   #{ action: "record_history", room: "id", event: "..." }
+//!   #{ action: "grant_skill", player: "name", skill: "..." }
+//!   #{ action: "adjust_rep", player: "name", faction: "...", amount: 5 }
 
 use rhai::{Engine, Scope, AST, Dynamic, Map as RhaiMap};
 use std::collections::HashMap;

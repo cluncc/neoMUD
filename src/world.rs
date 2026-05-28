@@ -417,6 +417,8 @@ impl World {
 
 }
 
+// Used by lib (integration tests) and by main.rs's `#[cfg(test)]` block, but
+// the binary's non-test build doesn't reference it directly.
 #[allow(dead_code)]
 pub fn parse_area_file_str(content: &str) -> Result<(Area, HashMap<String, NpcTemplate>, HashMap<String, ItemTemplate>)> {
     let file: AreaFile = toml::from_str(content)

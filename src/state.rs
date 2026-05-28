@@ -127,11 +127,6 @@ impl GameState {
         self.players.values().filter(|p| p.room == room_id).collect()
     }
 
-    #[allow(dead_code)]
-    pub fn npcs_in_room(&self, room_id: &str) -> Vec<&ActiveNpc> {
-        self.npcs.values().filter(|n| n.room == room_id && n.alive).collect()
-    }
-
     pub fn player_names_in_room(&self, room_id: &str) -> Vec<String> {
         self.players.values()
             .filter(|p| p.room == room_id)
@@ -509,9 +504,9 @@ impl GameState {
             _ => None,
         };
         if let Some(m) = msg {
-            for (_area_id, area) in &self.world.areas {
+            for area in self.world.areas.values() {
                 // Only announce in outside rooms
-                for (_, room) in &area.rooms {
+                for room in area.rooms.values() {
                     if room.flags.outside {
                         for name in self.player_names_in_room(&room.id) {
                             self.tell_player(&name, &m, sessions).await;

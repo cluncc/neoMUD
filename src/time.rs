@@ -24,22 +24,6 @@ pub enum TimeOfDay {
     Night,       // 22-23
 }
 
-impl TimeOfDay {
-    #[allow(dead_code)]
-    pub fn ambient_light(&self) -> u8 {
-        match self {
-            TimeOfDay::DeepNight => 1,
-            TimeOfDay::Dawn => 4,
-            TimeOfDay::Morning => 8,
-            TimeOfDay::Midday => 10,
-            TimeOfDay::Afternoon => 8,
-            TimeOfDay::Dusk => 5,
-            TimeOfDay::Evening => 3,
-            TimeOfDay::Night => 2,
-        }
-    }
-}
-
 impl fmt::Display for TimeOfDay {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -89,20 +73,6 @@ pub enum Weather {
 }
 
 impl Weather {
-    #[allow(dead_code)]
-    pub fn affects_visibility(&self) -> bool {
-        matches!(self, Weather::HeavyRain | Weather::Thunderstorm | Weather::Fog | Weather::Blizzard)
-    }
-
-    #[allow(dead_code)]
-    pub fn combat_modifier(&self) -> f32 {
-        match self {
-            Weather::Thunderstorm | Weather::Blizzard => 0.8,
-            Weather::HeavyRain | Weather::Fog => 0.9,
-            _ => 1.0,
-        }
-    }
-
     pub fn description(&self) -> &str {
         match self {
             Weather::Clear => "The sky is clear and bright.",
@@ -246,11 +216,6 @@ impl GameTime {
             9..=11 => Season::Autumn,
             _ => Season::Winter,
         }
-    }
-
-    #[allow(dead_code)]
-    pub fn is_daytime(&self) -> bool {
-        self.hour >= 6 && self.hour < 20
     }
 
     pub fn display(&self) -> String {

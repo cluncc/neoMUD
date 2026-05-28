@@ -1,5 +1,5 @@
-/// Session: manages a single connected client.
-/// Handles the state machine from initial connection → login/creation → playing.
+//! Session: manages a single connected client.
+//! Handles the state machine from initial connection → login/creation → playing.
 
 use std::time::Duration;
 use tokio::io::{AsyncReadExt, AsyncWriteExt, BufWriter};
@@ -109,8 +109,8 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                     let _ = writer.write_all(&[TELNET_IAC, TELNET_WONT, TELNET_ECHO]).await;
                                     let hash = hash_password(&line);
 
-                                    if name_tag.starts_with("new:") {
-                                        let name = name_tag[4..].to_string();
+                                    if let Some(name) = name_tag.strip_prefix("new:") {
+                                        let name = name.to_string();
                                         // Send race selection
                                         let race_menu = build_race_menu();
                                         let _ = writer.write_all(race_menu.as_bytes()).await;
