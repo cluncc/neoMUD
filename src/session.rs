@@ -218,9 +218,17 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
 
             // Output from game
             Some(msg) = rx.recv() => {
-                let _ = writer.write_all(b"\r").await;
+                // Erase the current input line so the async message doesn't
+                // overwrite whatever the player is midway through typing, then
+                // redraw the prompt and re-echo the buffered input so their
+                // in-progress keystrokes aren't lost.
+                let _ = writer.write_all(b"\r\x1b[K").await;
                 let _ = writer.write_all(msg.as_bytes()).await;
-                let _ = writer.write_all(b"\r\n> ").await;
+                let _ = writer.write_all(b"\r\n").await;
+                if matches!(phase, SessionPhase::Playing(_)) {
+                    let _ = writer.write_all(b"> ").await;
+                    let _ = writer.write_all(&input_buf).await;
+                }
                 let _ = writer.flush().await;
             }
         }

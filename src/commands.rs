@@ -294,7 +294,7 @@ pub async fn render_room(handle: &GameHandle, player_name: &str) {
         room.contextual_description(time, &weather)
     };
 
-    output.push_str(&room_desc(&desc));
+    output.push_str(&room_desc(&wrap(&desc, WRAP_WIDTH)));
     output.push_str("\r\n");
 
     // Weather line for outside rooms
@@ -370,7 +370,7 @@ async fn cmd_examine(handle: &GameHandle, player_name: &str, target: &str) {
                     _ if mem_sentiment <= -51 => " They glare at you with hostility.",
                     _ => "",
                 };
-                state.tell_player(player_name, &format!("{}{}", room_desc(long), info_msg(attitude)), &handle.sessions).await;
+                state.tell_player(player_name, &format!("{}{}", room_desc(&wrap(long, WRAP_WIDTH)), info_msg(attitude)), &handle.sessions).await;
                 return;
             }
         }
@@ -382,7 +382,7 @@ async fn cmd_examine(handle: &GameHandle, player_name: &str, target: &str) {
         let desc = item.custom_desc.as_deref()
             .or_else(|| tmpl.map(|t| t.long_desc.as_str()))
             .unwrap_or("You see nothing special about it.");
-        state.tell_player(player_name, &room_desc(desc), &handle.sessions).await;
+        state.tell_player(player_name, &room_desc(&wrap(desc, WRAP_WIDTH)), &handle.sessions).await;
         return;
     }
 
@@ -390,7 +390,7 @@ async fn cmd_examine(handle: &GameHandle, player_name: &str, target: &str) {
     for lore_entry in &room.lore {
         if lore_entry.to_lowercase().starts_with(&kw) {
             let rest = lore_entry[kw.len()..].trim_start_matches(':').trim();
-            state.tell_player(player_name, &room_desc(rest), &handle.sessions).await;
+            state.tell_player(player_name, &room_desc(&wrap(rest, WRAP_WIDTH)), &handle.sessions).await;
             return;
         }
     }
@@ -2018,18 +2018,41 @@ async fn cmd_admin_set(handle: &GameHandle, player_name: &str, args: &str) {
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
-/// Returns true if `kw` matches the NPC's name OR any of its template keywords.
+/// Returns true if the player's target `kw` matches this NPC.
+///
+/// The NPC is targetable by any word the player can actually see for it: its
+/// name, its short and long descriptions, and any authored template keywords.
+/// Each whitespace-separated word the player typed must prefix-match one of
+/// those tokens (with surrounding punctuation ignored), so "goblin" or "large
+/// goblin" both hit "a large goblin", "gob" matches by prefix, and multi-word
+/// input works. Matching on word boundaries avoids the old `contains` behavior
+/// where "ard" would wrongly match "guard".
 fn npc_matches(
     npc: &crate::entity::ActiveNpc,
     world: &crate::world::World,
     kw: &str,
 ) -> bool {
-    if npc.name.to_lowercase().contains(kw) {
-        return true;
+    let query = kw.trim().to_lowercase();
+    if query.is_empty() {
+        return false;
     }
-    world.get_npc_template(&npc.template_id)
-        .map(|t| t.keywords.iter().any(|k| k.to_lowercase().contains(kw)))
-        .unwrap_or(false)
+
+    // Gather every visible piece of text: name, short/long desc, and keywords.
+    let mut sources: Vec<String> = vec![npc.name.to_lowercase()];
+    if let Some(t) = world.get_npc_template(&npc.template_id) {
+        sources.push(t.short_desc.to_lowercase());
+        sources.push(t.long_desc.to_lowercase());
+        sources.extend(t.keywords.iter().map(|k| k.to_lowercase()));
+    }
+    let tokens: Vec<&str> = sources.iter().flat_map(|s| s.split_whitespace()).collect();
+
+    // Every word the player typed must prefix-match some token, ignoring any
+    // punctuation clinging to the token (e.g. "goblin," in a description).
+    let strip = |s: &str| s.trim_matches(|c: char| !c.is_alphanumeric()).to_string();
+    query.split_whitespace().all(|word| {
+        let word = strip(word);
+        !word.is_empty() && tokens.iter().any(|tok| strip(tok).starts_with(&word))
+    })
 }
 
 fn find_player_name<'a>(

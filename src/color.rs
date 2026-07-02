@@ -39,6 +39,65 @@ pub fn success_msg(s: &str) -> String { green(s) }
 pub fn info_msg(s: &str) -> String { dim(s) }
 pub fn admin_msg(s: &str) -> String { bright_red(s) }
 
+/// Default wrap width for prose output (classic 80-column terminal).
+pub const WRAP_WIDTH: usize = 80;
+
+/// Word-wrap `text` to `width` visible columns, breaking only at spaces.
+///
+/// Existing newlines are preserved as hard breaks, runs of spaces are
+/// collapsed, and ANSI escape sequences don't count toward the column width.
+/// Lines are joined with `\r\n` so terminals render them consistently instead
+/// of falling back to their own soft-wrap (which breaks words mid-token).
+pub fn wrap(text: &str, width: usize) -> String {
+    let mut out = String::new();
+    for (i, line) in text.split('\n').enumerate() {
+        if i > 0 {
+            out.push_str("\r\n");
+        }
+        wrap_line(line.trim_end_matches('\r'), width, &mut out);
+    }
+    out
+}
+
+fn wrap_line(line: &str, width: usize, out: &mut String) {
+    let mut col = 0;            // visible columns used on the current line
+    let mut line_started = false;
+    for word in line.split(' ').filter(|w| !w.is_empty()) {
+        let wlen = visible_len(word);
+        if line_started && col + 1 + wlen > width {
+            out.push_str("\r\n");
+            col = 0;
+            line_started = false;
+        }
+        if line_started {
+            out.push(' ');
+            col += 1;
+        }
+        out.push_str(word);
+        col += wlen;
+        line_started = true;
+    }
+}
+
+/// Number of visible columns in `s`, ignoring ANSI SGR escape sequences.
+fn visible_len(s: &str) -> usize {
+    let mut len = 0;
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // Skip the escape sequence up to and including its final byte.
+            for c2 in chars.by_ref() {
+                if c2.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            len += 1;
+        }
+    }
+    len
+}
+
 /// Horizontal separator line
 pub fn separator() -> String {
     dim(&"-".repeat(60))
@@ -52,4 +111,37 @@ pub fn health_bar(current: i32, max: i32, width: usize) -> String {
     let color = if ratio > 0.6 { bright_green } else if ratio > 0.3 { yellow } else { bright_red };
     let bar = format!("[{}{}]", "#".repeat(filled), ".".repeat(empty));
     color(&bar)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn wraps_on_word_boundaries() {
+        let out = wrap("the quick brown fox jumps", 10);
+        for line in out.split("\r\n") {
+            assert!(line.len() <= 10, "line too long: {:?}", line);
+        }
+        // No word should be split across lines.
+        assert_eq!(out.replace("\r\n", " "), "the quick brown fox jumps");
+    }
+
+    #[test]
+    fn preserves_hard_newlines() {
+        assert_eq!(wrap("a\nb", 80), "a\r\nb");
+    }
+
+    #[test]
+    fn ignores_ansi_width() {
+        // The escape codes shouldn't count toward the column budget, so the
+        // colored word plus a short word still fit on one line.
+        let colored = format!("{} ok", bold("word"));
+        assert!(!wrap(&colored, 10).contains("\r\n"));
+    }
+
+    #[test]
+    fn collapses_extra_spaces() {
+        assert_eq!(wrap("a    b", 80), "a b");
+    }
 }

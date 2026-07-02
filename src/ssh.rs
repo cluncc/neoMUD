@@ -297,7 +297,15 @@ async fn run_ssh_session(
             }
 
             Some(msg) = game_rx.recv() => {
-                ssh_send(&ssh, channel, &format!("\r{}\r\n> ", msg)).await;
+                // Erase the current input line so the async message doesn't
+                // overwrite what the player is midway through typing, then
+                // redraw the prompt and re-echo the buffered input so their
+                // in-progress keystrokes aren't lost.
+                ssh_send(&ssh, channel, &format!("\r\x1b[K{}\r\n", msg)).await;
+                if matches!(phase, SessionPhase::Playing(_)) {
+                    let partial = String::from_utf8_lossy(&buf);
+                    ssh_send(&ssh, channel, &format!("> {}", partial)).await;
+                }
             }
         }
     }
