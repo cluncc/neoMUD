@@ -2020,13 +2020,15 @@ async fn cmd_admin_set(handle: &GameHandle, player_name: &str, args: &str) {
 
 /// Returns true if the player's target `kw` matches this NPC.
 ///
-/// The NPC is targetable by any word the player can actually see for it: its
-/// name, its short and long descriptions, and any authored template keywords.
-/// Each whitespace-separated word the player typed must prefix-match one of
-/// those tokens (with surrounding punctuation ignored), so "goblin" or "large
-/// goblin" both hit "a large goblin", "gob" matches by prefix, and multi-word
-/// input works. Matching on word boundaries avoids the old `contains` behavior
-/// where "ard" would wrongly match "guard".
+/// The NPC is targetable by the words the player sees at a glance: its name,
+/// its short description (shown in the room), and any authored template
+/// keywords. The long description is deliberately excluded — it's prose the
+/// player only sees on close examination and would make targeting far too
+/// loose. Each whitespace-separated word the player typed must prefix-match one
+/// of those tokens (with surrounding punctuation ignored), so "goblin" or
+/// "large goblin" both hit "a large goblin", "gob" matches by prefix, and
+/// multi-word input works. Matching on word boundaries avoids the old
+/// `contains` behavior where "ard" would wrongly match "guard".
 fn npc_matches(
     npc: &crate::entity::ActiveNpc,
     world: &crate::world::World,
@@ -2037,11 +2039,10 @@ fn npc_matches(
         return false;
     }
 
-    // Gather every visible piece of text: name, short/long desc, and keywords.
+    // Gather the at-a-glance text: name, short desc, and keywords.
     let mut sources: Vec<String> = vec![npc.name.to_lowercase()];
     if let Some(t) = world.get_npc_template(&npc.template_id) {
         sources.push(t.short_desc.to_lowercase());
-        sources.push(t.long_desc.to_lowercase());
         sources.extend(t.keywords.iter().map(|k| k.to_lowercase()));
     }
     let tokens: Vec<&str> = sources.iter().flat_map(|s| s.split_whitespace()).collect();

@@ -15,6 +15,7 @@ use crate::color::*;
 use crate::commands::{dispatch, hash_password, render_room, verify_password};
 use crate::entity::{Player, Race};
 use crate::events::GameEvent;
+use crate::lineedit::LineEditor;
 use crate::session::{
     build_class_menu, build_race_menu, build_welcome, do_login, parse_class_choice,
     parse_race_choice, sanitize_name,
@@ -252,7 +253,7 @@ async fn run_ssh_session(
     // Channel for game→player output (registered in handle.sessions on login).
     let (game_tx, mut game_rx) = mpsc::channel::<String>(256);
 
-    let mut buf = Vec::<u8>::new();
+    let mut editor = LineEditor::new(MAX_INPUT_LEN);
     let mut done = false;
 
     loop {
@@ -262,35 +263,24 @@ async fn run_ssh_session(
                 match maybe {
                     None => break,
                     Some(data) => {
-                        for &b in &data {
-                            if b == b'\r' || b == b'\n' {
-                                if buf.is_empty() { continue; }
-                                ssh_send(&ssh, channel, "\r\n").await;
-                                let line = String::from_utf8_lossy(&buf).into_owned();
-                                buf.clear();
-                                if line.len() > MAX_INPUT_LEN { continue; }
+                        // Mask keystrokes while a password is being entered.
+                        editor.set_mask(matches!(phase, SessionPhase::AwaitingPassword(_)));
+                        let feed = editor.feed(&data);
+                        if !feed.echo.is_empty() {
+                            ssh_send(&ssh, channel, &feed.echo).await;
+                        }
+                        for line in feed.lines {
+                            if line.len() > MAX_INPUT_LEN { continue; }
 
-                                done = handle_line(
-                                    &line, &mut phase, &ssh, channel,
-                                    &handle, game_tx.clone(),
-                                ).await;
+                            done = handle_line(
+                                &line, &mut phase, &ssh, channel,
+                                &handle, game_tx.clone(),
+                            ).await;
 
-                                if matches!(phase, SessionPhase::Playing(_)) && !done {
-                                    ssh_send(&ssh, channel, "> ").await;
-                                }
-                                if done { break; }
-                            } else if b == 8 || b == 127 {
-                                if buf.pop().is_some() && !matches!(phase, SessionPhase::AwaitingPassword(_)) {
-                                    ssh_send(&ssh, channel, "\x08 \x08").await;
-                                }
-                            } else if b.is_ascii() && !b.is_ascii_control() {
-                                if buf.len() < MAX_INPUT_LEN {
-                                    buf.push(b);
-                                    if !matches!(phase, SessionPhase::AwaitingPassword(_)) {
-                                        ssh_send(&ssh, channel, &(b as char).to_string()).await;
-                                    }
-                                }
+                            if matches!(phase, SessionPhase::Playing(_)) && !done {
+                                ssh_send(&ssh, channel, "> ").await;
                             }
+                            if done { break; }
                         }
                     }
                 }
@@ -303,8 +293,7 @@ async fn run_ssh_session(
                 // in-progress keystrokes aren't lost.
                 ssh_send(&ssh, channel, &format!("\r\x1b[K{}\r\n", msg)).await;
                 if matches!(phase, SessionPhase::Playing(_)) {
-                    let partial = String::from_utf8_lossy(&buf);
-                    ssh_send(&ssh, channel, &format!("> {}", partial)).await;
+                    ssh_send(&ssh, channel, &format!("> {}", editor.render_buffer())).await;
                 }
             }
         }

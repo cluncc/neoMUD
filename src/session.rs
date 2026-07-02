@@ -12,6 +12,7 @@ use crate::color::*;
 use crate::commands::{dispatch, hash_password, render_room, verify_password};
 use crate::entity::{Class, Player, Race};
 use crate::events::GameEvent;
+use crate::lineedit::LineEditor;
 use crate::state::GameHandle;
 
 const INPUT_TIMEOUT_SECS: u64 = 300; // 5-minute idle disconnect
@@ -24,6 +25,7 @@ const TELNET_WONT: u8 = 252;
 const TELNET_DO: u8 = 253;
 const TELNET_DONT: u8 = 254;
 const TELNET_ECHO: u8 = 1;
+const TELNET_SGA: u8 = 3;
 const TELNET_NAWS: u8 = 31;
 
 #[derive(Debug, PartialEq)]
@@ -45,13 +47,16 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
 
     let (tx, mut rx): (mpsc::Sender<String>, mpsc::Receiver<String>) = mpsc::channel(256);
 
-    // Negotiate telnet options: let the client handle local echo (WONT ECHO),
-    // and ask for window size (DO NAWS).
-    let _ = writer.write_all(&[TELNET_IAC, TELNET_WONT, TELNET_ECHO]).await;
+    // Negotiate telnet options for server-side line editing: the server takes
+    // over echo (WILL ECHO) and suppresses go-ahead (WILL SGA), which puts
+    // conforming clients into character-at-a-time mode so arrow keys and other
+    // editing shortcuts reach us. We also ask for window size (DO NAWS).
+    let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_ECHO]).await;
+    let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_SGA]).await;
     let _ = writer.write_all(&[TELNET_IAC, TELNET_DO, TELNET_NAWS]).await;
     let _ = writer.flush().await;
 
-    let mut input_buf = Vec::<u8>::with_capacity(256);
+    let mut editor = LineEditor::new(MAX_INPUT_LEN);
     let mut raw_buf = [0u8; 512];
 
     // Send MOTD — normalise bare \n to \r\n for telnet
@@ -62,7 +67,7 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
     let _ = writer.flush().await;
     let mut phase = SessionPhase::AwaitingName;
 
-    loop {
+    'session: loop {
         tokio::select! {
             // Data from client
             result = timeout(Duration::from_secs(INPUT_TIMEOUT_SECS), reader.read(&mut raw_buf)) => {
@@ -75,7 +80,15 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                     Ok(Err(_)) | Ok(Ok(0)) => break,
                     Ok(Ok(n)) => {
                         let chunk = &raw_buf[..n];
-                        if let Some(line) = process_telnet_input(chunk, &mut input_buf) {
+                        let data = filter_telnet(chunk);
+                        // Mask keystrokes while a password is being entered.
+                        editor.set_mask(matches!(phase, SessionPhase::AwaitingPassword(_)));
+                        let feed = editor.feed(&data);
+                        if !feed.echo.is_empty() {
+                            let _ = writer.write_all(feed.echo.as_bytes()).await;
+                            let _ = writer.flush().await;
+                        }
+                        for line in feed.lines {
                             let line = line.trim().to_string();
                             if line.len() > MAX_INPUT_LEN { continue; }
 
@@ -91,13 +104,10 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                     let exists = Player::exists(&handle.config.game.players_path, &name);
                                     if exists {
                                         let _ = writer.write_all(format!("Welcome back, {}! Password: ", bright_white(&name)).as_bytes()).await;
-                                        // Suppress client echo for password entry
-                                        let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_ECHO]).await;
                                         let _ = writer.flush().await;
                                         phase = SessionPhase::AwaitingPassword(name);
                                     } else {
                                         let _ = writer.write_all(format!("Creating new character '{}'.\r\nPassword: ", bright_white(&name)).as_bytes()).await;
-                                        let _ = writer.write_all(&[TELNET_IAC, TELNET_WILL, TELNET_ECHO]).await;
                                         let _ = writer.flush().await;
                                         // Use AwaitingPassword but we'll detect new char after
                                         phase = SessionPhase::AwaitingPassword(format!("new:{}", name));
@@ -105,8 +115,6 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                 }
 
                                 SessionPhase::AwaitingPassword(name_tag) => {
-                                    // Restore client-side echo now that password is submitted
-                                    let _ = writer.write_all(&[TELNET_IAC, TELNET_WONT, TELNET_ECHO]).await;
                                     let hash = hash_password(&line);
 
                                     if let Some(name) = name_tag.strip_prefix("new:") {
@@ -129,7 +137,7 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                                 if !verify_password(&player.password_hash, &line) {
                                                     let _ = writer.write_all(error_msg("Incorrect password.\r\n").as_bytes()).await;
                                                     let _ = writer.flush().await;
-                                                    break;
+                                                    break 'session;
                                                 }
                                                 // Successful login
                                                 let login_msg = do_login(player, &handle, tx.clone()).await;
@@ -201,14 +209,16 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                                             let _ = writer.write_all(msg.as_bytes()).await;
                                         }
                                         let _ = writer.flush().await;
-                                        break;
+                                        break 'session;
                                     }
                                 }
 
                             }
 
+                            // The editor already emitted the newline after the
+                            // submitted command, so just draw the prompt.
                             if matches!(phase, SessionPhase::Playing(_)) {
-                                let _ = writer.write_all(b"\r\n> ").await;
+                                let _ = writer.write_all(b"> ").await;
                             }
                             let _ = writer.flush().await;
                         }
@@ -227,7 +237,7 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
                 let _ = writer.write_all(b"\r\n").await;
                 if matches!(phase, SessionPhase::Playing(_)) {
                     let _ = writer.write_all(b"> ").await;
-                    let _ = writer.write_all(&input_buf).await;
+                    let _ = writer.write_all(editor.render_buffer().as_bytes()).await;
                 }
                 let _ = writer.flush().await;
             }
@@ -259,15 +269,17 @@ pub async fn run_session(stream: TcpStream, handle: GameHandle) {
     info!("Session {} ended", peer);
 }
 
-/// Returns Some(line) when a complete line is ready, stripping telnet IAC sequences.
+/// Strip telnet IAC command sequences from `chunk`, returning the raw data
+/// bytes for the line editor to interpret (printable characters, control
+/// codes, and ANSI escape sequences all pass through untouched).
 ///
 /// Handles the four IAC forms a client may send:
-///   IAC IAC           — escaped 0xFF data byte (currently dropped, since we
-///                       only accept printable ASCII anyway)
+///   IAC IAC           — escaped 0xFF data byte (dropped; we only accept ASCII)
 ///   IAC <2-byte cmd>  — single-byte commands like NOP (241), AYT (246)
 ///   IAC WILL|WONT|DO|DONT <option>  — 3-byte option negotiation
 ///   IAC SB <option> ... IAC SE      — subnegotiation, variable length
-fn process_telnet_input(chunk: &[u8], buf: &mut Vec<u8>) -> Option<String> {
+fn filter_telnet(chunk: &[u8]) -> Vec<u8> {
+    let mut out = Vec::with_capacity(chunk.len());
     let mut i = 0;
     while i < chunk.len() {
         let b = chunk[i];
@@ -278,7 +290,7 @@ fn process_telnet_input(chunk: &[u8], buf: &mut Vec<u8>) -> Option<String> {
             match cmd {
                 TELNET_IAC => {
                     // Escaped 0xFF — would be a data byte. We strip it since
-                    // we only buffer printable ASCII below.
+                    // we only accept printable ASCII.
                     i += 2;
                 }
                 TELNET_WILL | TELNET_WONT | TELNET_DO | TELNET_DONT => {
@@ -304,23 +316,10 @@ fn process_telnet_input(chunk: &[u8], buf: &mut Vec<u8>) -> Option<String> {
             }
             continue;
         }
-        if b == b'\r' || b == b'\n' {
-            if buf.is_empty() { i += 1; continue; }
-            let line = String::from_utf8_lossy(buf).into_owned();
-            buf.clear();
-            return Some(line);
-        }
-        // Handle backspace
-        if b == 8 || b == 127 {
-            buf.pop();
-        } else if b.is_ascii() && !b.is_ascii_control() {
-            if buf.len() < MAX_INPUT_LEN {
-                buf.push(b);
-            }
-        }
+        out.push(b);
         i += 1;
     }
-    None
+    out
 }
 
 pub fn sanitize_name(s: &str) -> String {

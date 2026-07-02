@@ -4,6 +4,7 @@ mod commands;
 mod config;
 mod entity;
 mod events;
+mod lineedit;
 mod scripting;
 mod server;
 mod session;

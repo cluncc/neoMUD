@@ -6,6 +6,7 @@ pub mod commands;
 pub mod config;
 pub mod entity;
 pub mod events;
+pub mod lineedit;
 pub mod scripting;
 pub mod session;
 pub mod state;
