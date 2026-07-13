@@ -150,3 +150,16 @@ cargo test
 ## License
 
 This was vibe coded, so it belongs to the machines. Ask them.
+
+## Donate
+
+If this project is useful to you, donations are appreciated:
+
+| Method | Details |
+|--------|---------|
+| PayPal | [sales@digitalgangster.com](https://www.paypal.com/donate/?business=sales%40digitalgangster.com) |
+| Venmo | [@dge-llc](https://venmo.com/u/dge-llc) |
+| Cash App | [$dgeternal](https://cash.app/$dgeternal) |
+| Bitcoin | `1ytcdgNzF3ygR8faAcFhu3SjoexhmwdAJ` |
+| Ethereum | `ytcracker.eth` |
+| Solana | `ytcdgu2BmXeqfiLR6v4Y1FMwezjL6CUNR1fy928aToQ` |
